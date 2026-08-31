@@ -1,3 +1,4 @@
+print(f"O valor de __name__ agora é: {__name__}")
 import sqlite3
 
 #1. Importar a sua função de conexão do arquivo database.py
@@ -30,7 +31,7 @@ def listar_categorias():
     return dados
 
 # 3. A arena de testes
-if __name__ == "main.py":
+if __name__ == "__main__":
     # Chamar a função listar_categorias(), guardar o retorno em uma variável e imprimir (print) para testar!
     resultado = listar_categorias()
     print(resultado)
