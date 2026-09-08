@@ -1,10 +1,11 @@
-from item_service import obter_itens_por_categoria
 import re
 from datetime import datetime
 
 from categoria_service import obter_resumo_categorias
 
-from meio_pagamento_service import obter_resumo_meios_pagamento
+from meio_pagamento_service import (
+    obter_resumo_meios_pagamento
+)
 
 from movimentacao_service import (
     registrar_movimentacao,
@@ -42,6 +43,13 @@ from pessoa_service import (
     inativar_pessoa
 )
 
+from item_service import (
+    obter_itens,
+    obter_itens_por_categoria,
+    cadastrar_item,
+    inativar_item
+)
+
 from participacao_service import (
     obter_compras_para_rateio,
     registrar_rateio,
@@ -55,8 +63,121 @@ from orcamento_service import (
 
 
 # ============================================================
+# CONFIGURAÇÃO DO USUÁRIO
+# ============================================================
+
+ID_USUARIO_PRINCIPAL = 1
+
+
+# ============================================================
 # FORMATAÇÃO
 # ============================================================
+
+def obter_meses_consulta(
+    quantidade=12
+):
+    hoje = datetime.now()
+
+    meses = []
+
+    ano = hoje.year
+    mes = hoje.month
+
+    for _ in range(quantidade):
+
+        chave = (
+            f"{ano}-"
+            f"{mes:02d}"
+        )
+
+        nome = (
+            f"{MESES[mes]}-"
+            f"{str(ano)[2:]}"
+        )
+
+        meses.append(
+            (
+                chave,
+                nome
+            )
+        )
+
+        mes -= 1
+
+        if mes == 0:
+            mes = 12
+            ano -= 1
+
+    return meses
+
+
+def selecionar_mes_consulta():
+    meses = obter_meses_consulta()
+
+    print(
+        "\n=== PERÍODO ==="
+    )
+
+    for indice, (
+        chave,
+        nome
+    ) in enumerate(
+        meses,
+        start=1
+    ):
+
+        if indice == 1:
+            print(
+                f"{indice}. "
+                f"{nome} [atual]"
+            )
+
+        else:
+            print(
+                f"{indice}. {nome}"
+            )
+
+    print(
+        "0. Todos os lançamentos"
+    )
+
+    escolha = input(
+        "\nEscolha "
+        "[Enter = mês atual]: "
+    ).strip()
+
+    # Enter = mês corrente
+    if escolha == "":
+        return meses[0]
+
+    try:
+        escolha = int(
+            escolha
+        )
+
+    except ValueError:
+        print(
+            "Opção inválida."
+        )
+        return None
+
+    if escolha == 0:
+        return (
+            None,
+            "Todos"
+        )
+
+    if not 1 <= escolha <= len(
+        meses
+    ):
+        print(
+            "Opção inválida."
+        )
+        return None
+
+    return meses[
+        escolha - 1
+    ]
 
 MESES = {
     1: "jan",
@@ -94,11 +215,9 @@ def formatar_data(data_iso):
             "%Y-%m-%d"
         )
 
-        mes = MESES[data.month]
-
         return (
             f"{data.day:02d}/"
-            f"{mes}/"
+            f"{MESES[data.month]}/"
             f"{str(data.year)[2:]}"
         )
 
@@ -107,11 +226,6 @@ def formatar_data(data_iso):
 
 
 def converter_mes_usuario(mes_usuario):
-    """
-    Exemplo:
-    set-26 -> 2026-09
-    """
-
     meses = {
         "jan": "01",
         "fev": "02",
@@ -170,250 +284,17 @@ def extrair_primeiro_numero(texto):
 # SELETORES
 # ============================================================
 
-def selecionar_item(id_categoria):
-    itens = obter_itens_por_categoria(
-        id_categoria
-    )
-
-    if not itens:
-        print(
-            "Nenhum item cadastrado para essa categoria."
-        )
-        return None
-
-    print(
-        "\n=== ITENS DISPONÍVEIS ==="
-    )
-
-    for indice, item in enumerate(
-        itens,
-        start=1
-    ):
-        id_item, nome, ativo = item
-
-        print(
-            f"{indice}. {nome}"
-        )
-
-    try:
-        escolha = int(
-            input(
-                "Escolha o item: "
-            )
-        )
-
-        if not 1 <= escolha <= len(itens):
-            print(
-                "Opção inválida."
-            )
-            return None
-
-        return itens[
-            escolha - 1
-        ][0]
-
-    except ValueError:
-        print(
-            "Digite uma opção numérica válida."
-        )
-        return None
-
-def selecionar_instituicao():
-    instituicoes = listar_instituicoes()
-
-    instituicoes_ativas = [
-        instituicao
-        for instituicao in instituicoes
-        if instituicao[2] == 1
-    ]
-
-    if not instituicoes_ativas:
-        print(
-            "Nenhuma instituição ativa encontrada."
-        )
-        return None
-
-    print(
-        "\n=== INSTITUIÇÕES DISPONÍVEIS ==="
-    )
-
-    for indice, instituicao in enumerate(
-        instituicoes_ativas,
-        start=1
-    ):
-        _, nome, _ = instituicao
-
-        print(
-            f"{indice}. {nome}"
-        )
-
-    try:
-        escolha = int(
-            input(
-                "Escolha a instituição: "
-            )
-        )
-
-        if not 1 <= escolha <= len(
-            instituicoes_ativas
-        ):
-            print(
-                "Opção inválida."
-            )
-            return None
-
-        return instituicoes_ativas[
-            escolha - 1
-        ][0]
-
-    except ValueError:
-        print(
-            "Digite uma opção numérica válida."
-        )
-        return None
-
-
-def selecionar_conta():
-    contas = listar_contas()
-
-    contas_ativas = [
-        conta
-        for conta in contas
-        if conta[5] == 1
-    ]
-
-    if not contas_ativas:
-        print(
-            "Nenhuma conta ativa encontrada."
-        )
-        return None
-
-    print(
-        "\n=== CONTAS DISPONÍVEIS ==="
-    )
-
-    for indice, conta in enumerate(
-        contas_ativas,
-        start=1
-    ):
-        (
-            _,
-            instituicao,
-            nome,
-            tipo,
-            _,
-            _
-        ) = conta
-
-        print(
-            f"{indice}. "
-            f"{nome} | "
-            f"{instituicao} | "
-            f"{tipo}"
-        )
-
-    try:
-        escolha = int(
-            input(
-                "Escolha a conta: "
-            )
-        )
-
-        if not 1 <= escolha <= len(
-            contas_ativas
-        ):
-            print(
-                "Opção inválida."
-            )
-            return None
-
-        return contas_ativas[
-            escolha - 1
-        ][0]
-
-    except ValueError:
-        print(
-            "Digite uma opção numérica válida."
-        )
-        return None
-
-
-def selecionar_cartao():
-    cartoes = obter_cartoes()
-
-    cartoes_ativos = [
-        cartao
-        for cartao in cartoes
-        if cartao[6] == 1
-    ]
-
-    if not cartoes_ativos:
-        print(
-            "Nenhum cartão ativo encontrado."
-        )
-        return None
-
-    print(
-        "\n=== CARTÕES DISPONÍVEIS ==="
-    )
-
-    for indice, cartao in enumerate(
-        cartoes_ativos,
-        start=1
-    ):
-        (
-            _,
-            instituicao,
-            nome,
-            _,
-            _,
-            _,
-            _
-        ) = cartao
-
-        print(
-            f"{indice}. "
-            f"{nome} | "
-            f"{instituicao}"
-        )
-
-    try:
-        escolha = int(
-            input(
-                "Escolha o cartão: "
-            )
-        )
-
-        if not 1 <= escolha <= len(
-            cartoes_ativos
-        ):
-            print(
-                "Opção inválida."
-            )
-            return None
-
-        return cartoes_ativos[
-            escolha - 1
-        ][0]
-
-    except ValueError:
-        print(
-            "Digite uma opção numérica válida."
-        )
-        return None
-
-
 def selecionar_categoria():
     categorias = obter_resumo_categorias()
 
     if not categorias:
         print(
-            "Nenhuma categoria encontrada."
+            "\nNenhuma categoria disponível."
         )
         return None
 
     print(
-        "\n=== CATEGORIAS DISPONÍVEIS ==="
+        "\n=== CATEGORIAS ==="
     )
 
     for indice, categoria in enumerate(
@@ -439,17 +320,67 @@ def selecionar_categoria():
             )
             return None
 
-        categoria_escolhida = categorias[
-            escolha - 1
-        ]
-
         return extrair_primeiro_numero(
-            categoria_escolhida
+            categorias[
+                escolha - 1
+            ]
         )
 
     except ValueError:
         print(
-            "Digite uma opção numérica válida."
+            "Digite uma opção numérica."
+        )
+        return None
+
+
+def selecionar_item(id_categoria):
+    itens = obter_itens_por_categoria(
+        id_categoria
+    )
+
+    if not itens:
+        print(
+            "\nNenhum item cadastrado "
+            "para essa categoria."
+        )
+        return None
+
+    print(
+        "\n=== ITENS ==="
+    )
+
+    for indice, item in enumerate(
+        itens,
+        start=1
+    ):
+        _, nome, _ = item
+
+        print(
+            f"{indice}. {nome}"
+        )
+
+    try:
+        escolha = int(
+            input(
+                "Escolha o item: "
+            )
+        )
+
+        if not 1 <= escolha <= len(
+            itens
+        ):
+            print(
+                "Opção inválida."
+            )
+            return None
+
+        return itens[
+            escolha - 1
+        ][0]
+
+    except ValueError:
+        print(
+            "Digite uma opção numérica."
         )
         return None
 
@@ -465,12 +396,12 @@ def selecionar_pessoa():
 
     if not pessoas_ativas:
         print(
-            "Nenhuma pessoa ativa encontrada."
+            "\nNenhuma pessoa disponível."
         )
         return None
 
     print(
-        "\n=== PESSOAS DISPONÍVEIS ==="
+        "\n=== PESSOAS ==="
     )
 
     for indice, pessoa in enumerate(
@@ -504,18 +435,297 @@ def selecionar_pessoa():
 
     except ValueError:
         print(
-            "Digite uma opção numérica válida."
+            "Digite uma opção numérica."
         )
         return None
 
 
+def selecionar_instituicao():
+    instituicoes = listar_instituicoes()
+
+    ativas = [
+        instituicao
+        for instituicao in instituicoes
+        if instituicao[2] == 1
+    ]
+
+    if not ativas:
+        print(
+            "\nNenhuma instituição disponível."
+        )
+        return None
+
+    print(
+        "\n=== INSTITUIÇÕES ==="
+    )
+
+    for indice, instituicao in enumerate(
+        ativas,
+        start=1
+    ):
+        _, nome, _ = instituicao
+
+        print(
+            f"{indice}. {nome}"
+        )
+
+    try:
+        escolha = int(
+            input(
+                "Escolha a instituição: "
+            )
+        )
+
+        if not 1 <= escolha <= len(
+            ativas
+        ):
+            return None
+
+        return ativas[
+            escolha - 1
+        ][0]
+
+    except ValueError:
+        return None
+
+
+def selecionar_conta():
+    contas = listar_contas()
+
+    ativas = [
+        conta
+        for conta in contas
+        if conta[5] == 1
+    ]
+
+    if not ativas:
+        return None
+
+    print(
+        "\n=== CONTAS ==="
+    )
+
+    for indice, conta in enumerate(
+        ativas,
+        start=1
+    ):
+        (
+            _,
+            instituicao,
+            nome,
+            tipo,
+            _,
+            _
+        ) = conta
+
+        print(
+            f"{indice}. "
+            f"{nome} | "
+            f"{instituicao} | "
+            f"{tipo}"
+        )
+
+    try:
+        escolha = int(
+            input(
+                "Escolha a conta: "
+            )
+        )
+
+        if not 1 <= escolha <= len(
+            ativas
+        ):
+            return None
+
+        return ativas[
+            escolha - 1
+        ][0]
+
+    except ValueError:
+        return None
+
+
+def selecionar_cartao_compra():
+
+    cartoes = obter_cartoes()
+
+    print(
+        "\n=== CARTÃO UTILIZADO ==="
+    )
+
+    print("1. Nubank")
+    print("2. Bradesco")
+    print("3. Inter")
+    print("4. Cartão de outra pessoa")
+
+    escolha = input(
+        "Escolha: "
+    ).strip()
+
+    instituicoes = {
+        "1": "Nubank",
+        "2": "Bradesco",
+        "3": "Inter"
+    }
+
+
+    # ========================================================
+    # CARTÕES PRÓPRIOS
+    # ========================================================
+
+    if escolha in instituicoes:
+
+        nome_instituicao = (
+            instituicoes[
+                escolha
+            ]
+        )
+
+        encontrados = [
+            cartao
+            for cartao in cartoes
+
+            if (
+                cartao[6] == 1
+                and cartao[7]
+                    == ID_USUARIO_PRINCIPAL
+                and cartao[1].lower()
+                    == nome_instituicao.lower()
+            )
+        ]
+
+        if not encontrados:
+
+            print(
+                f"Nenhum cartão ativo do "
+                f"{nome_instituicao} encontrado."
+            )
+
+            return None
+
+        if len(encontrados) == 1:
+            return encontrados[0][0]
+
+
+        print(
+            f"\n=== CARTÕES {nome_instituicao.upper()} ==="
+        )
+
+        for indice, cartao in enumerate(
+            encontrados,
+            start=1
+        ):
+            print(
+                f"{indice}. {cartao[2]}"
+            )
+
+        try:
+            opcao = int(
+                input(
+                    "Escolha: "
+                )
+            )
+
+        except ValueError:
+            return None
+
+        if not 1 <= opcao <= len(
+            encontrados
+        ):
+            return None
+
+        return encontrados[
+            opcao - 1
+        ][0]
+
+
+    # ========================================================
+    # CARTÃO DE OUTRA PESSOA
+    # ========================================================
+
+    if escolha == "4":
+
+        print(
+            "\nDe quem é o cartão?"
+        )
+
+        id_pessoa = selecionar_pessoa()
+
+        if id_pessoa is None:
+            return None
+
+        encontrados = [
+            cartao
+            for cartao in cartoes
+
+            if (
+                cartao[6] == 1
+                and cartao[7] == id_pessoa
+            )
+        ]
+
+        if not encontrados:
+
+            print(
+                "\nNenhum cartão cadastrado "
+                "para essa pessoa."
+            )
+
+            print(
+                "Cadastre em "
+                "Configurações > Cartões."
+            )
+
+            return None
+
+        print(
+            "\n=== CARTÕES DISPONÍVEIS ==="
+        )
+
+        for indice, cartao in enumerate(
+            encontrados,
+            start=1
+        ):
+
+            print(
+                f"{indice}. "
+                f"{cartao[2]} | "
+                f"{cartao[1]}"
+            )
+
+        try:
+            opcao = int(
+                input(
+                    "Escolha: "
+                )
+            )
+
+        except ValueError:
+            return None
+
+        if not 1 <= opcao <= len(
+            encontrados
+        ):
+            return None
+
+        return encontrados[
+            opcao - 1
+        ][0]
+
+
+    print(
+        "Opção inválida."
+    )
+
+    return None
+
+
 def selecionar_meio_pagamento():
-    meios = obter_resumo_meios_pagamento()
+    meios = (
+        obter_resumo_meios_pagamento()
+    )
 
     if not meios:
-        print(
-            "Nenhum meio de pagamento encontrado."
-        )
         return None
 
     print(
@@ -540,225 +750,524 @@ def selecionar_meio_pagamento():
         if not 1 <= escolha <= len(
             meios
         ):
-            print(
-                "Opção inválida."
-            )
             return None
 
-        meio_escolhido = meios[
-            escolha - 1
-        ]
-
         return extrair_primeiro_numero(
-            meio_escolhido
+            meios[
+                escolha - 1
+            ]
         )
 
     except ValueError:
-        print(
-            "Digite uma opção numérica válida."
-        )
         return None
 
 
-def selecionar_compra_para_rateio():
-    compras = obter_compras_para_rateio()
+def selecionar_meio_pagamento_cartao():
+    meios = (
+        obter_resumo_meios_pagamento()
+    )
 
-    if not compras:
+    meios_cartao = []
+
+    for meio in meios:
+        texto = meio.lower()
+
+        if (
+            "cart" in texto
+            or "crédito" in texto
+            or "credito" in texto
+        ):
+            meios_cartao.append(
+                meio
+            )
+
+    if not meios_cartao:
         print(
-            "Nenhuma compra disponível para rateio."
+            "\nNenhum cartão disponível."
         )
         return None
 
     print(
-        "\n=== COMPRAS DISPONÍVEIS ==="
+        "\n=== CARTÃO UTILIZADO ==="
     )
 
-    for indice, compra in enumerate(
-        compras,
+    for indice, meio in enumerate(
+        meios_cartao,
         start=1
     ):
-        (
-            _,
-            data,
-            local,
-            valor_total,
-            _,
-            nome_pagador
-        ) = compra
-
         print(
-            f"{indice}. "
-            f"{local} | "
-            f"{formatar_valor(valor_total)} | "
-            f"{formatar_data(data)} | "
-            f"Pagador: {nome_pagador}"
+            f"{indice}. {meio}"
         )
 
     try:
         escolha = int(
             input(
-                "Escolha a compra: "
+                "Escolha o cartão: "
             )
         )
 
         if not 1 <= escolha <= len(
-            compras
+            meios_cartao
         ):
-            print(
-                "Opção inválida."
-            )
             return None
 
-        return compras[
-            escolha - 1
-        ]
+        return extrair_primeiro_numero(
+            meios_cartao[
+                escolha - 1
+            ]
+        )
 
     except ValueError:
-        print(
-            "Digite uma opção numérica válida."
-        )
         return None
 
 
 # ============================================================
-# MENU PRINCIPAL
+# MOVIMENTAÇÕES
 # ============================================================
 
-def iniciar_taverna():
+def fluxo_registrar_movimentacao():
 
-    while True:
+    print(
+        "\n" + "=" * 45
+    )
+    print(
+        "         REGISTRAR MOVIMENTAÇÃO"
+    )
+    print(
+        "=" * 45
+    )
 
-        print(
-            "\n" + "=" * 55
-        )
-        print(
-            "                  FINANCE QUEST"
-        )
-        print(
-            "=" * 55
-        )
+    print(
+        "\n1. Entrada"
+    )
+    print(
+        "2. Saída"
+    )
 
-        print(
-            "\n--- MOVIMENTAÇÕES ---"
-        )
-        print("1. Ver categorias")
-        print("2. Ver meios de pagamento")
-        print("3. Nova movimentação")
-        print("4. Ver movimentações")
+    tipo_escolha = input(
+        "\nEscolha [1/2]: "
+    ).strip()
 
-        print(
-            "\n--- INSTITUIÇÕES ---"
-        )
-        print("5. Ver instituições")
-        print("6. Cadastrar instituição")
-        print("7. Desativar instituição")
 
-        print(
-            "\n--- CONTAS ---"
-        )
-        print("8. Ver contas")
-        print("9. Cadastrar conta")
-        print("10. Desativar conta")
+    # ========================================================
+    # ENTRADA
+    # ========================================================
+
+    if tipo_escolha == "1":
 
         print(
-            "\n--- CARTÕES ---"
+            "\n=== ENTRADA ==="
         )
-        print("11. Ver cartões")
-        print("12. Cadastrar cartão")
-        print("13. Desativar cartão")
-        print("14. Resumo do cartão")
 
         print(
-            "\n--- COMPRAS ---"
+            "1. Salário"
         )
-        print("15. Cadastrar compra")
-        print("16. Ver compras")
-
         print(
-            "\n--- PESSOAS ---"
+            "2. Gratificação"
         )
-        print("17. Ver pessoas")
-        print("18. Cadastrar pessoa")
-        print("19. Desativar pessoa")
-
         print(
-            "\n--- ACERTO DE CONTAS ---"
+            "3. Reembolso"
         )
-        print("20. Ratear compra")
-        print("21. Ver acerto de contas")
-
         print(
-            "\n--- ORÇAMENTO ---"
-        )
-        print("22. Definir orçamento")
-        print("23. Ver execução do orçamento")
-
-        print(
-            "\n0. Sair"
+            "4. Outra entrada"
         )
 
         escolha = input(
-            "\nDigite sua opção: "
-        )
+            "\nTipo de entrada: "
+        ).strip()
 
+        tipos = {
+            "1": "Salário",
+            "2": "Gratificação",
+            "3": "Reembolso"
+        }
 
-        # ====================================================
-        # 1 - CATEGORIAS
-        # ====================================================
+        if escolha in tipos:
+            descricao = tipos[
+                escolha
+            ]
 
-        if escolha == "1":
-
-            categorias = (
-                obter_resumo_categorias()
-            )
-
-            print(
-                "\n=== CATEGORIAS ==="
-            )
-
-            for categoria in categorias:
-                print(categoria)
-
-
-        # ====================================================
-        # 2 - MEIOS DE PAGAMENTO
-        # ====================================================
-
-        elif escolha == "2":
-
-            meios = (
-                obter_resumo_meios_pagamento()
-            )
-
-            print(
-                "\n=== MEIOS DE PAGAMENTO ==="
-            )
-
-            for meio in meios:
-                print(meio)
-
-
-        # ====================================================
-        # 3 - NOVA MOVIMENTAÇÃO
-        # ====================================================
-
-        elif escolha == "3":
-
-            print(
-                "\n=== NOVA MOVIMENTAÇÃO ==="
-            )
-
-            data = input(
-                "Data (AAAA-MM-DD): "
-            )
-
+        elif escolha == "4":
             descricao = input(
                 "Descrição: "
             )
 
-            valor = input(
-                "Valor: "
+        else:
+            print(
+                "Opção inválida."
             )
+            return
+
+        data = input(
+            "Data (AAAA-MM-DD): "
+        )
+
+        valor = input(
+            "Valor: "
+        )
+
+        resultado = registrar_movimentacao(
+            tipo="entrada",
+            data=data,
+            descricao=descricao,
+            valor=valor
+        )
+
+        print(
+            f"\n{resultado}"
+        )
+
+        return
+
+
+    # ========================================================
+    # SAÍDA
+    # ========================================================
+
+    if tipo_escolha == "2":
+
+        print(
+            "\n=== SAÍDA ==="
+        )
+
+        data = input(
+            "Data (AAAA-MM-DD): "
+        )
+
+        valor = input(
+            "Valor: "
+        )
+
+        id_categoria = (
+            selecionar_categoria()
+        )
+
+        if id_categoria is None:
+            return
+
+        id_item = selecionar_item(
+            id_categoria
+        )
+
+        if id_item is None:
+            return
+
+        observacao = input(
+            "Observação (opcional): "
+        )
+
+        id_meio_pagamento = (
+            selecionar_meio_pagamento()
+        )
+
+        resultado = registrar_movimentacao(
+            tipo="saida",
+            data=data,
+            descricao=observacao,
+            valor=valor,
+            id_categoria=id_categoria,
+            id_item=id_item,
+            id_meio_pagamento=id_meio_pagamento
+        )
+
+        print(
+            f"\n{resultado}"
+        )
+
+        return
+
+
+    print(
+        "\nOpção inválida."
+    )
+
+
+# ============================================================
+# COMPRA NO CARTÃO
+# ============================================================
+
+def montar_responsabilidades(
+    valor_total
+):
+
+    print(
+        "\n=== RESPONSABILIDADE ==="
+    )
+
+    print(
+        "1. Minha [padrão]"
+    )
+
+    print(
+        "2. Outra pessoa"
+    )
+
+    print(
+        "3. Compartilhada"
+    )
+
+    escolha = input(
+        "Escolha [Enter = 1]: "
+    ).strip()
+
+    if escolha == "":
+        escolha = "1"
+
+
+    # ========================================================
+    # MINHA
+    # ========================================================
+
+    if escolha == "1":
+
+        return [
+            (
+                ID_USUARIO_PRINCIPAL,
+                valor_total
+            )
+        ]
+
+
+    # ========================================================
+    # OUTRA PESSOA
+    # ========================================================
+
+    if escolha == "2":
+
+        id_pessoa = (
+            selecionar_pessoa()
+        )
+
+        if id_pessoa is None:
+            return None
+
+        return [
+            (
+                id_pessoa,
+                valor_total
+            )
+        ]
+
+
+    # ========================================================
+    # COMPARTILHADA
+    # ========================================================
+
+    if escolha == "3":
+
+        try:
+            quantidade = int(
+                input(
+                    "Quantidade de participantes: "
+                )
+            )
+
+        except ValueError:
+            return None
+
+        if quantidade <= 0:
+            return None
+
+        cotas = []
+        pessoas_usadas = set()
+
+        for numero in range(
+            1,
+            quantidade + 1
+        ):
+
+            print(
+                f"\nParticipante {numero}"
+            )
+
+            id_pessoa = (
+                selecionar_pessoa()
+            )
+
+            if id_pessoa is None:
+                return None
+
+            if id_pessoa in pessoas_usadas:
+                print(
+                    "Pessoa repetida."
+                )
+                return None
+
+            pessoas_usadas.add(
+                id_pessoa
+            )
+
+            try:
+                valor_cota = float(
+                    input(
+                        "Valor da responsabilidade: "
+                    )
+                )
+
+            except ValueError:
+                return None
+
+            cotas.append(
+                (
+                    id_pessoa,
+                    valor_cota
+                )
+            )
+
+        return cotas
+
+
+    return None
+
+
+def fluxo_registrar_compra():
+
+    print(
+        "\n" + "=" * 45
+    )
+
+    print(
+        "      REGISTRAR COMPRA NO CARTÃO"
+    )
+
+    print(
+        "=" * 45
+    )
+
+    data = input(
+        "Data (AAAA-MM-DD): "
+    )
+
+    valor_texto = input(
+        "Valor total: "
+    )
+
+    try:
+        valor_total = float(
+            valor_texto
+        )
+
+    except ValueError:
+
+        print(
+            "Valor inválido."
+        )
+
+        return
+
+
+    id_categoria = (
+        selecionar_categoria()
+    )
+
+    if id_categoria is None:
+        return
+
+
+    id_item = selecionar_item(
+        id_categoria
+    )
+
+    if id_item is None:
+        return
+
+
+    observacao = input(
+        "Observação (opcional): "
+    )
+
+
+    id_cartao = (
+        selecionar_cartao_compra()
+    )
+
+    if id_cartao is None:
+        return
+
+
+    quantidade_parcelas = input(
+        "Quantidade de parcelas [1]: "
+    ).strip()
+
+    if quantidade_parcelas == "":
+        quantidade_parcelas = "1"
+
+
+    responsabilidades = (
+        montar_responsabilidades(
+            valor_total
+        )
+    )
+
+    if responsabilidades is None:
+
+        print(
+            "\nResponsabilidade inválida."
+        )
+
+        return
+
+
+    resultado = cadastrar_compra(
+        data=data,
+        observacao=observacao,
+        valor_total=valor_total,
+        id_categoria=id_categoria,
+        id_item=id_item,
+        id_cartao=id_cartao,
+        quantidade_parcelas=
+            quantidade_parcelas,
+        responsabilidades=
+            responsabilidades
+    )
+
+    print(
+        f"\n{resultado}"
+    )
+
+
+# ============================================================
+# ORÇAMENTO
+# ============================================================
+
+def menu_orcamento():
+
+    while True:
+
+        print(
+            "\n" + "=" * 45
+        )
+
+        print(
+            "               ORÇAMENTO"
+        )
+
+        print(
+            "=" * 45
+        )
+
+        print(
+            "1. Definir orçamento"
+        )
+
+        print(
+            "2. Ver execução e semáforo"
+        )
+
+        print(
+            "0. Voltar"
+        )
+
+        escolha = input(
+            "\nEscolha: "
+        )
+
+
+        # ----------------------------------------------------
+        # DEFINIR
+        # ----------------------------------------------------
+
+        if escolha == "1":
 
             id_categoria = (
                 selecionar_categoria()
@@ -767,395 +1276,181 @@ def iniciar_taverna():
             if id_categoria is None:
                 continue
 
-            id_item = selecionar_item(
-                id_categoria
+            mes_usuario = input(
+                "Mês (ex.: set-26): "
             )
 
-            if id_item is None:
+            mes_ano = (
+                converter_mes_usuario(
+                    mes_usuario
+                )
+            )
+
+            if mes_ano is None:
+
+                print(
+                    "Mês inválido."
+                )
+
                 continue
 
-            id_pessoa = (
-                selecionar_pessoa()
+            valor = input(
+                "Valor planejado: "
             )
 
-            if id_pessoa is None:
+            print(
+                cadastrar_orcamento(
+                    id_categoria,
+                    mes_ano,
+                    valor
+                )
+            )
+
+
+        # ----------------------------------------------------
+        # EXECUÇÃO
+        # ----------------------------------------------------
+
+        elif escolha == "2":
+
+            mes_usuario = input(
+                "Mês (ex.: set-26): "
+            )
+
+            mes_ano = (
+                converter_mes_usuario(
+                    mes_usuario
+                )
+            )
+
+            if mes_ano is None:
+                print(
+                    "Mês inválido."
+                )
                 continue
 
-            id_meio_pagamento = (
-                selecionar_meio_pagamento()
+            resumo = (
+                obter_resumo_orcamento(
+                    mes_ano,
+                    ID_USUARIO_PRINCIPAL
+                )
             )
 
-            if id_meio_pagamento is None:
+            print(
+                "\n" + "=" * 45
+            )
+
+            print(
+                f"       ORÇAMENTO | "
+                f"{mes_usuario.lower()}"
+            )
+
+            print(
+                "=" * 45
+            )
+
+            if not resumo:
+
+                print(
+                    "\nNenhum orçamento definido."
+                )
+
                 continue
 
-            resultado = registrar_movimentacao(
-                data,
-                descricao,
-                valor,
-                id_categoria,
-                id_item,
-                id_pessoa,
-                id_meio_pagamento
-            )
+            for item in resumo:
 
-            print(resultado)
+                print(
+                    "\n" + "-" * 45
+                )
+
+                print(
+                    item[
+                        "categoria"
+                    ]
+                )
+
+                print(
+                    "\nPlanejado:  "
+                    f"{formatar_valor(item['planejado'])}"
+                )
+
+                print(
+                    "Executado:  "
+                    f"{formatar_valor(item['executado'])}"
+                )
+
+                print(
+                    "Disponível: "
+                    f"{formatar_valor(item['disponivel'])}"
+                )
+
+                print(
+                    "\nExecução:  "
+                    f"{item['percentual_execucao']:.1f}%"
+                )
+
+                print(
+                    "Ritmo mês: "
+                    f"{item['percentual_mes']:.1f}%"
+                )
+
+                print(
+                    "\nSemáforo: "
+                    f"{item['semaforo']}"
+                )
 
 
-        # ====================================================
-        # 4 - VER MOVIMENTAÇÕES
-        # ====================================================
+        elif escolha == "0":
+            return
 
-        elif escolha == "4":
 
-            movimentacoes = (
-                obter_resumo_movimentacoes()
-            )
-
+        else:
             print(
-                "\n=== MOVIMENTAÇÕES ==="
+                "Opção inválida."
             )
 
-            for movimentacao in movimentacoes:
-                print(movimentacao)
 
+# ============================================================
+# CARTÕES
+# ============================================================
 
-        # ====================================================
-        # 5 - VER INSTITUIÇÕES
-        # ====================================================
+def menu_cartoes():
 
-        elif escolha == "5":
+    while True:
 
-            instituicoes = (
-                listar_instituicoes()
-            )
+        print(
+            "\n" + "=" * 45
+        )
 
-            print(
-                "\n=== INSTITUIÇÕES ==="
-            )
+        print(
+            "                CARTÕES"
+        )
 
-            for (
-                _,
-                nome,
-                ativo
-            ) in instituicoes:
+        print(
+            "=" * 45
+        )
 
-                status = (
-                    "Ativa"
-                    if ativo == 1
-                    else "Inativa"
-                )
+        print(
+            "1. Resumo do cartão"
+        )
 
-                print(
-                    f"{nome} | {status}"
-                )
+        print(
+            "2. Ver cartões"
+        )
 
+        print(
+            "0. Voltar"
+        )
 
-        # ====================================================
-        # 6 - CADASTRAR INSTITUIÇÃO
-        # ====================================================
+        escolha = input(
+            "\nEscolha: "
+        )
 
-        elif escolha == "6":
 
-            print(
-                "\n=== CADASTRAR INSTITUIÇÃO ==="
-            )
-
-            nome = input(
-                "Nome da instituição: "
-            )
-
-            resultado = (
-                cadastrar_instituicao(
-                    nome
-                )
-            )
-
-            print(resultado)
-
-
-        # ====================================================
-        # 7 - DESATIVAR INSTITUIÇÃO
-        # ====================================================
-
-        elif escolha == "7":
-
-            print(
-                "\n=== DESATIVAR INSTITUIÇÃO ==="
-            )
-
-            id_instituicao = (
-                selecionar_instituicao()
-            )
-
-            if id_instituicao is not None:
-
-                resultado = (
-                    inativar_instituicao(
-                        id_instituicao
-                    )
-                )
-
-                print(resultado)
-
-
-        # ====================================================
-        # 8 - VER CONTAS
-        # ====================================================
-
-        elif escolha == "8":
-
-            contas = listar_contas()
-
-            print(
-                "\n=== CONTAS ==="
-            )
-
-            for (
-                _,
-                instituicao,
-                nome,
-                tipo,
-                saldo_inicial,
-                ativo
-            ) in contas:
-
-                status = (
-                    "Ativa"
-                    if ativo == 1
-                    else "Inativa"
-                )
-
-                print(
-                    "\n" + "-" * 40
-                )
-
-                print(
-                    f"Conta: {nome}"
-                )
-
-                print(
-                    f"Instituição: {instituicao}"
-                )
-
-                print(
-                    f"Tipo: {tipo}"
-                )
-
-                print(
-                    "Saldo inicial: "
-                    f"{formatar_valor(saldo_inicial)}"
-                )
-
-                print(
-                    f"Status: {status}"
-                )
-
-
-        # ====================================================
-        # 9 - CADASTRAR CONTA
-        # ====================================================
-
-        elif escolha == "9":
-
-            print(
-                "\n=== CADASTRAR CONTA ==="
-            )
-
-            id_instituicao = (
-                selecionar_instituicao()
-            )
-
-            if id_instituicao is None:
-                continue
-
-            nome = input(
-                "Nome da conta: "
-            )
-
-            tipo = input(
-                "Tipo (corrente/poupança): "
-            )
-
-            saldo_inicial = input(
-                "Saldo inicial: "
-            )
-
-            resultado = cadastrar_conta(
-                id_instituicao,
-                nome,
-                tipo,
-                saldo_inicial
-            )
-
-            print(resultado)
-
-
-        # ====================================================
-        # 10 - DESATIVAR CONTA
-        # ====================================================
-
-        elif escolha == "10":
-
-            print(
-                "\n=== DESATIVAR CONTA ==="
-            )
-
-            id_conta = (
-                selecionar_conta()
-            )
-
-            if id_conta is not None:
-
-                resultado = (
-                    desativar_conta(
-                        id_conta
-                    )
-                )
-
-                print(resultado)
-
-
-        # ====================================================
-        # 11 - VER CARTÕES
-        # ====================================================
-
-        elif escolha == "11":
-
-            cartoes = obter_cartoes()
-
-            print(
-                "\n=== CARTÕES ==="
-            )
-
-            for (
-                _,
-                instituicao,
-                nome,
-                limite_total,
-                dia_fechamento,
-                dia_vencimento,
-                ativo
-            ) in cartoes:
-
-                status = (
-                    "Ativo"
-                    if ativo == 1
-                    else "Inativo"
-                )
-
-                print(
-                    "\n" + "-" * 40
-                )
-
-                print(
-                    f"Cartão: {nome}"
-                )
-
-                print(
-                    f"Instituição: {instituicao}"
-                )
-
-                print(
-                    "Limite: "
-                    f"{formatar_valor(limite_total)}"
-                )
-
-                print(
-                    "Fechamento: "
-                    f"dia {dia_fechamento}"
-                )
-
-                print(
-                    "Vencimento: "
-                    f"dia {dia_vencimento}"
-                )
-
-                print(
-                    f"Status: {status}"
-                )
-
-
-        # ====================================================
-        # 12 - CADASTRAR CARTÃO
-        # ====================================================
-
-        elif escolha == "12":
-
-            print(
-                "\n=== CADASTRAR CARTÃO ==="
-            )
-
-            id_instituicao = (
-                selecionar_instituicao()
-            )
-
-            if id_instituicao is None:
-                continue
-
-            nome = input(
-                "Nome do cartão: "
-            )
-
-            limite_total = input(
-                "Limite total: "
-            )
-
-            dia_fechamento = input(
-                "Dia de fechamento: "
-            )
-
-            dia_vencimento = input(
-                "Dia de vencimento: "
-            )
-
-            resultado = cadastrar_cartao(
-                id_instituicao,
-                nome,
-                limite_total,
-                dia_fechamento,
-                dia_vencimento
-            )
-
-            print(resultado)
-
-
-        # ====================================================
-        # 13 - DESATIVAR CARTÃO
-        # ====================================================
-
-        elif escolha == "13":
-
-            print(
-                "\n=== DESATIVAR CARTÃO ==="
-            )
+        if escolha == "1":
 
             id_cartao = (
-                selecionar_cartao()
-            )
-
-            if id_cartao is not None:
-
-                resultado = (
-                    inativar_cartao(
-                        id_cartao
-                    )
-                )
-
-                print(resultado)
-
-
-        # ====================================================
-        # 14 - RESUMO DO CARTÃO
-        # ====================================================
-
-        elif escolha == "14":
-
-            print(
-                "\n=== RESUMO DO CARTÃO ==="
-            )
-
-            id_cartao = (
-                selecionar_cartao()
+                selecionar_cartao_compra()
             )
 
             if id_cartao is None:
@@ -1173,62 +1468,60 @@ def iniciar_taverna():
             )
 
             if ano_mes is None:
-
                 print(
-                    "Mês inválido. "
-                    "Use o formato set-26."
+                    "Mês inválido."
                 )
-
                 continue
 
-            resumo = obter_resumo_cartao(
-                id_cartao,
-                ano_mes
+            resumo = (
+                obter_resumo_cartao(
+                    id_cartao,
+                    ano_mes
+                )
             )
 
             if resumo is None:
-
-                print(
-                    "Cartão não encontrado."
-                )
-
                 continue
 
             print(
-                "\n" + "=" * 42
+                "\n" + "=" * 45
             )
+
             print(
                 "          RESUMO DO CARTÃO"
             )
+
             print(
-                "=" * 42
+                "=" * 45
             )
 
             print(
-                f"Cartão: {resumo['cartao']}"
+                f"Cartão: "
+                f"{resumo['cartao']}"
             )
 
             print(
-                f"Fatura: {mes_usuario.lower()}"
+                f"Fatura: "
+                f"{mes_usuario.lower()}"
             )
 
             print(
-                "Limite total: "
+                "\nLimite total: "
                 f"{formatar_valor(resumo['limite_total'])}"
             )
 
             print(
-                "Limite comprometido: "
+                "Comprometido: "
                 f"{formatar_valor(resumo['limite_comprometido'])}"
             )
 
             print(
-                "Limite disponível: "
+                "Disponível: "
                 f"{formatar_valor(resumo['limite_disponivel'])}"
             )
 
             print(
-                "Valor da fatura: "
+                "Fatura do mês: "
                 f"{formatar_valor(resumo['fatura_mes'])}"
             )
 
@@ -1237,402 +1530,110 @@ def iniciar_taverna():
                 f"{resumo['mana']:.1f}%"
             )
 
-            print(
-                "=" * 42
-            )
 
+        elif escolha == "2":
 
-        # ====================================================
-        # 15 - CADASTRAR COMPRA
-        # ====================================================
+            cartoes = obter_cartoes()
 
-        elif escolha == "15":
-
-            print(
-                "\n=== CADASTRAR COMPRA ==="
-            )
-
-            data = input(
-                "Data da compra (AAAA-MM-DD): "
-            )
-
-            local = input(
-                "Local da compra: "
-            )
-
-            valor_total = input(
-                "Valor total: "
-            )
-
-            id_categoria = (
-                selecionar_categoria()
-            )
-
-            if id_categoria is None:
-                continue
-            
-            id_item = selecionar_item(
-                id_categoria
-            )
-
-            if id_item is None:
-                continue
-
-            id_pessoa_pagador = (
-                selecionar_pessoa()
-            )
-
-            if id_pessoa_pagador is None:
-                continue
-
-            id_meio_pagamento = (
-                selecionar_meio_pagamento()
-            )
-
-            if id_meio_pagamento is None:
-                continue
-
-            quantidade_parcelas = input(
-                "Quantidade de parcelas: "
-            )
-
-            resultado = cadastrar_compra(
-                    data,
-                    local,
-                    valor_total,
-                    id_categoria,
-                    id_item,
-                    id_pessoa_pagador,
-                    id_meio_pagamento,
-                    quantidade_parcelas
-                )
-
-            print(resultado)
-
-
-        # ====================================================
-        # 16 - VER COMPRAS
-        # ====================================================
-
-        elif escolha == "16":
-
-            compras = obter_compras()
-
-            print(
-                "\n=== COMPRAS ==="
-            )
-
-            if not compras:
-                print(
-                    "Nenhuma compra encontrada."
-                )
-                continue
-
-            for compra in compras:
+            for cartao in cartoes:
 
                 (
-                    id_compra,
-                    data,
-                    local,
-                    valor_total,
-                    quantidade_parcelas,
+                    _,
+                    instituicao,
+                    nome,
+                    limite,
+                    fechamento,
+                    vencimento,
                     ativo
-                ) = compra
+                ) = cartao
 
                 status = (
-                    "Ativa"
+                    "Ativo"
                     if ativo == 1
-                    else "Inativa"
+                    else "Inativo"
                 )
 
                 print(
-                    "\n" + "-" * 45
+                    "\n" + "-" * 40
                 )
 
                 print(
-                    f"Compra: {local}"
+                    f"{nome} | {instituicao}"
                 )
 
                 print(
-                    "Data: "
-                    f"{formatar_data(data)}"
+                    f"Limite: "
+                    f"{formatar_valor(limite)}"
                 )
 
                 print(
-                    "Valor total: "
-                    f"{formatar_valor(valor_total)}"
+                    f"Fecha dia {fechamento}"
                 )
 
                 print(
-                    "Parcelamento: "
-                    f"{quantidade_parcelas}x"
+                    f"Vence dia {vencimento}"
                 )
 
                 print(
                     f"Status: {status}"
                 )
 
-                parcelas = obter_parcelas(
-                    id_compra
-                )
 
-                if parcelas:
-
-                    print(
-                        "\nParcelas:"
-                    )
-
-                    for (
-                        _,
-                        numero_parcela,
-                        data_vencimento,
-                        valor,
-                        status_parcela
-                    ) in parcelas:
-
-                        print(
-                            f"  "
-                            f"{numero_parcela}/"
-                            f"{quantidade_parcelas}"
-                            f" | "
-                            f"{formatar_data(data_vencimento)}"
-                            f" | "
-                            f"{formatar_valor(valor)}"
-                            f" | "
-                            f"{status_parcela}"
-                        )
+        elif escolha == "0":
+            return
 
 
-        # ====================================================
-        # 17 - VER PESSOAS
-        # ====================================================
-
-        elif escolha == "17":
-
-            pessoas = obter_pessoas()
-
+        else:
             print(
-                "\n=== PESSOAS ==="
+                "Opção inválida."
             )
 
-            if not pessoas:
-                print(
-                    "Nenhuma pessoa cadastrada."
-                )
-                continue
 
-            for (
-                _,
-                nome,
-                ativo
-            ) in pessoas:
+# ============================================================
+# ACERTO DE CONTAS
+# ============================================================
 
-                status = (
-                    "Ativa"
-                    if ativo == 1
-                    else "Inativa"
-                )
+def menu_acerto():
 
-                print(
-                    f"{nome} | {status}"
-                )
+    while True:
 
+        print(
+            "\n" + "=" * 45
+        )
 
-        # ====================================================
-        # 18 - CADASTRAR PESSOA
-        # ====================================================
+        print(
+            "          ACERTO DE CONTAS"
+        )
 
-        elif escolha == "18":
+        print(
+            "=" * 45
+        )
 
-            print(
-                "\n=== CADASTRAR PESSOA ==="
-            )
+        print(
+            "1. Ver acerto"
+        )
 
-            nome = input(
-                "Nome da pessoa: "
-            )
+        print(
+            "2. Editar rateio de compra"
+        )
 
-            resultado = (
-                cadastrar_pessoa(
-                    nome
-                )
-            )
+        print(
+            "0. Voltar"
+        )
 
-            print(resultado)
+        escolha = input(
+            "\nEscolha: "
+        )
 
 
-        # ====================================================
-        # 19 - DESATIVAR PESSOA
-        # ====================================================
+        if escolha == "1":
 
-        elif escolha == "19":
-
-            print(
-                "\n=== DESATIVAR PESSOA ==="
-            )
-
-            id_pessoa = (
-                selecionar_pessoa()
-            )
-
-            if id_pessoa is not None:
-
-                resultado = (
-                    inativar_pessoa(
-                        id_pessoa
-                    )
-                )
-
-                print(resultado)
-
-
-        # ====================================================
-        # 20 - RATEAR COMPRA
-        # ====================================================
-
-        elif escolha == "20":
-
-            print(
-                "\n=== RATEAR COMPRA ==="
-            )
-
-            compra = (
-                selecionar_compra_para_rateio()
-            )
-
-            if compra is None:
-                continue
-
-            (
-                id_compra,
-                data,
-                local,
-                valor_total,
-                id_pessoa_pagador,
-                nome_pagador
-            ) = compra
-
-            print(
-                "\n" + "-" * 45
+            acertos = (
+                calcular_acerto_liquido()
             )
 
             print(
-                f"Compra: {local}"
-            )
-
-            print(
-                f"Data: {formatar_data(data)}"
-            )
-
-            print(
-                "Valor total: "
-                f"{formatar_valor(valor_total)}"
-            )
-
-            print(
-                f"Pagador: {nome_pagador}"
-            )
-
-            print(
-                "-" * 45
-            )
-
-            try:
-                quantidade_pessoas = int(
-                    input(
-                        "\nQuantas pessoas participarão "
-                        "do rateio? "
-                    )
-                )
-
-                if quantidade_pessoas <= 0:
-
-                    print(
-                        "A quantidade deve ser "
-                        "maior que zero."
-                    )
-
-                    continue
-
-            except ValueError:
-
-                print(
-                    "Digite uma quantidade válida."
-                )
-
-                continue
-
-            cotas = []
-            pessoas_usadas = set()
-
-            for numero in range(
-                1,
-                quantidade_pessoas + 1
-            ):
-
-                print(
-                    f"\n--- PARTICIPANTE {numero} ---"
-                )
-
-                id_pessoa = (
-                    selecionar_pessoa()
-                )
-
-                if id_pessoa is None:
-                    cotas = []
-                    break
-
-                if id_pessoa in pessoas_usadas:
-
-                    print(
-                        "Essa pessoa já foi "
-                        "adicionada ao rateio."
-                    )
-
-                    cotas = []
-                    break
-
-                pessoas_usadas.add(
-                    id_pessoa
-                )
-
-                valor_cota = input(
-                    "Valor da responsabilidade: "
-                )
-
-                cotas.append(
-                    (
-                        id_pessoa,
-                        valor_cota
-                    )
-                )
-
-            if not cotas:
-
-                print(
-                    "Rateio cancelado."
-                )
-
-                continue
-
-            resultado = registrar_rateio(
-                id_compra,
-                cotas
-            )
-
-            print(
-                f"\n{resultado}"
-            )
-
-
-        # ====================================================
-        # 21 - VER ACERTO DE CONTAS
-        # ====================================================
-
-        elif escolha == "21":
-
-            print(
-                "\n" + "=" * 42
+                "\n" + "=" * 45
             )
 
             print(
@@ -1640,230 +1641,961 @@ def iniciar_taverna():
             )
 
             print(
-                "=" * 42
-            )
-
-            acertos = (
-                calcular_acerto_liquido()
+                "=" * 45
             )
 
             if not acertos:
 
                 print(
-                    "\nNenhum valor pendente "
-                    "entre as pessoas."
+                    "\nNenhum valor pendente."
                 )
 
-            else:
+                continue
 
-                for acerto in acertos:
+            for acerto in acertos:
+
+                print(
+                    "\n"
+                    f"{acerto['devedor']} "
+                    f"deve pagar para "
+                    f"{acerto['credor']}:"
+                )
+
+                print(
+                    formatar_valor(
+                        acerto[
+                            "valor"
+                        ]
+                    )
+                )
+
+
+        elif escolha == "2":
+
+            compras = (
+                obter_compras_para_rateio()
+            )
+
+            if not compras:
+                continue
+
+            print(
+                "\n=== COMPRAS ==="
+            )
+
+            for indice, compra in enumerate(
+                compras,
+                start=1
+            ):
+
+                (
+                    _,
+                    data,
+                    observacao,
+                    valor,
+                    _,
+                    pagador
+                ) = compra
+
+                descricao = (
+                    observacao
+                    if observacao
+                    else "Sem observação"
+                )
+
+                print(
+                    f"{indice}. "
+                    f"{descricao} | "
+                    f"{formatar_valor(valor)} | "
+                    f"{formatar_data(data)} | "
+                    f"Pagador: {pagador}"
+                )
+
+            try:
+                indice = int(
+                    input(
+                        "Escolha a compra: "
+                    )
+                )
+
+            except ValueError:
+                continue
+
+            if not 1 <= indice <= len(
+                compras
+            ):
+                continue
+
+            compra = compras[
+                indice - 1
+            ]
+
+            id_compra = compra[0]
+            valor_total = compra[3]
+
+            responsabilidades = (
+                montar_responsabilidades(
+                    valor_total
+                )
+            )
+
+            if responsabilidades is None:
+                continue
+
+            print(
+                registrar_rateio(
+                    id_compra,
+                    responsabilidades
+                )
+            )
+
+
+        elif escolha == "0":
+            return
+
+
+# ============================================================
+# CONSULTAR LANÇAMENTOS
+# ============================================================
+
+def menu_consultas():
+
+    while True:
+
+        print(
+            "\n" + "=" * 45
+        )
+
+        print(
+            "         CONSULTAR LANÇAMENTOS"
+        )
+
+        print(
+            "=" * 45
+        )
+
+        print(
+            "1. Movimentações"
+        )
+
+        print(
+            "2. Compras no cartão"
+        )
+
+        print(
+            "0. Voltar"
+        )
+
+        escolha = input(
+            "\nEscolha: "
+        )
+
+
+        # ====================================================
+        # MOVIMENTAÇÕES
+        # ====================================================
+
+        if escolha == "1":
+
+            periodo = (
+                selecionar_mes_consulta()
+            )
+
+            if periodo is None:
+                continue
+
+            mes_ano, nome_mes = periodo
+
+            movimentacoes = (
+                obter_resumo_movimentacoes()
+            )
+
+            # Se mes_ano for None,
+            # significa "Todos".
+            if mes_ano is not None:
+
+                movimentacoes = [
+                    movimentacao
+                    for movimentacao
+                    in movimentacoes
+
+                    if movimentacao[1][
+                        :7
+                    ] == mes_ano
+                ]
+
+
+            print(
+                "\n" + "=" * 45
+            )
+
+            print(
+                "           MOVIMENTAÇÕES"
+            )
+
+            print(
+                f"             {nome_mes}"
+            )
+
+            print(
+                "=" * 45
+            )
+
+
+            if not movimentacoes:
+
+                print(
+                    "\nNenhuma movimentação "
+                    "encontrada nesse período."
+                )
+
+                continue
+
+
+            for movimentacao in movimentacoes:
+
+                (
+                    _,
+                    data,
+                    tipo,
+                    descricao,
+                    valor,
+                    categoria,
+                    item,
+                    ativo
+                ) = movimentacao
+
+
+                print(
+                    "\n" + "-" * 40
+                )
+
+                print(
+                    f"{formatar_data(data)} "
+                    f"| {tipo.upper()}"
+                )
+
+
+                # Entrada não possui categoria/item.
+                if tipo == "saida":
 
                     print(
-                        "\n" + "-" * 42
+                        f"{categoria} / {item}"
+                    )
+
+
+                if descricao:
+
+                    print(
+                        f"Obs.: {descricao}"
+                    )
+
+
+                print(
+                    formatar_valor(
+                        valor
+                    )
+                )
+
+
+        # ====================================================
+        # COMPRAS NO CARTÃO
+        # ====================================================
+
+        elif escolha == "2":
+
+            periodo = (
+                selecionar_mes_consulta()
+            )
+
+            if periodo is None:
+                continue
+
+            mes_ano, nome_mes = periodo
+
+            compras = obter_compras()
+
+
+            if mes_ano is not None:
+
+                compras = [
+                    compra
+                    for compra in compras
+
+                    if compra[1][
+                        :7
+                    ] == mes_ano
+                ]
+
+
+            print(
+                "\n" + "=" * 45
+            )
+
+            print(
+                "        COMPRAS NO CARTÃO"
+            )
+
+            print(
+                f"             {nome_mes}"
+            )
+
+            print(
+                "=" * 45
+            )
+
+
+            if not compras:
+
+                print(
+                    "\nNenhuma compra encontrada "
+                    "nesse período."
+                )
+
+                continue
+
+
+            for compra in compras:
+
+                (
+                    id_compra,
+                    data,
+                    observacao,
+                    valor_total,
+                    quantidade_parcelas,
+                    ativo
+                ) = compra
+
+
+                print(
+                    "\n" + "-" * 40
+                )
+
+                print(
+                    f"Data: "
+                    f"{formatar_data(data)}"
+                )
+
+                print(
+                    f"Valor: "
+                    f"{formatar_valor(valor_total)}"
+                )
+
+
+                if observacao:
+
+                    print(
+                        f"Obs.: {observacao}"
+                    )
+
+
+                print(
+                    f"Parcelas: "
+                    f"{quantidade_parcelas}x"
+                )
+
+
+                parcelas = obter_parcelas(
+                    id_compra
+                )
+
+
+                for parcela in parcelas:
+
+                    (
+                        _,
+                        numero,
+                        vencimento,
+                        valor,
+                        status
+                    ) = parcela
+
+
+                    print(
+                        f"  "
+                        f"{numero}/"
+                        f"{quantidade_parcelas}"
+                        f" | "
+                        f"{formatar_data(vencimento)}"
+                        f" | "
+                        f"{formatar_valor(valor)}"
+                        f" | "
+                        f"{status}"
+                    )
+
+
+        # ====================================================
+        # VOLTAR
+        # ====================================================
+
+        elif escolha == "0":
+            return
+
+
+        else:
+
+            print(
+                "Opção inválida."
+            )
+
+
+# ============================================================
+# CONFIGURAÇÕES
+# ============================================================
+
+
+def menu_configuracoes():
+
+    while True:
+
+        print(
+            "\n" + "=" * 45
+        )
+
+        print(
+            "             CONFIGURAÇÕES"
+        )
+
+        print(
+            "=" * 45
+        )
+
+        print(
+            "1. Instituições"
+        )
+
+        print(
+            "2. Contas"
+        )
+
+        print(
+            "3. Cartões"
+        )
+
+        print(
+            "4. Pessoas"
+        )
+
+        print(
+            "5. Categorias e Itens"
+        )
+
+        print(
+            "6. Meios de pagamento"
+        )
+
+        print(
+            "0. Voltar"
+        )
+
+        escolha = input(
+            "\nEscolha: "
+        )
+
+
+        # ====================================================
+        # INSTITUIÇÕES
+        # ====================================================
+
+        if escolha == "1":
+
+            print(
+                "\n1. Ver"
+            )
+            print(
+                "2. Cadastrar"
+            )
+            print(
+                "3. Desativar"
+            )
+
+            acao = input(
+                "Escolha: "
+            )
+
+            if acao == "1":
+
+                for instituicao in (
+                    listar_instituicoes()
+                ):
+
+                    _, nome, ativo = (
+                        instituicao
                     )
 
                     print(
-                        f"{acerto['devedor']} "
-                        f"deve pagar para "
-                        f"{acerto['credor']}:"
+                        f"{nome} | "
+                        f"{'Ativa' if ativo else 'Inativa'}"
                     )
 
+
+            elif acao == "2":
+
+                nome = input(
+                    "Nome: "
+                )
+
+                print(
+                    cadastrar_instituicao(
+                        nome
+                    )
+                )
+
+
+            elif acao == "3":
+
+                id_instituicao = (
+                    selecionar_instituicao()
+                )
+
+                if id_instituicao:
+
                     print(
-                        formatar_valor(
-                            acerto["valor"]
+                        inativar_instituicao(
+                            id_instituicao
                         )
                     )
 
-            print(
-                "\n" + "=" * 42
-            )
-
 
         # ====================================================
-        # 22 - DEFINIR ORÇAMENTO
+        # CONTAS
         # ====================================================
 
-        elif escolha == "22":
+        elif escolha == "2":
 
             print(
-                "\n" + "=" * 42
+                "\n1. Ver"
             )
-
             print(
-                "          DEFINIR ORÇAMENTO"
+                "2. Cadastrar"
             )
-
             print(
-                "=" * 42
+                "3. Desativar"
             )
 
-            id_categoria = (
-                selecionar_categoria()
+            acao = input(
+                "Escolha: "
             )
 
-            if id_categoria is None:
-                continue
+            if acao == "1":
 
-            mes_usuario = input(
-                "Mês do orçamento "
-                "(ex.: set-26): "
-            )
+                for conta in listar_contas():
 
-            mes_ano = (
-                converter_mes_usuario(
-                    mes_usuario
+                    print(
+                        conta
+                    )
+
+
+            elif acao == "2":
+
+                id_instituicao = (
+                    selecionar_instituicao()
                 )
-            )
 
-            if mes_ano is None:
+                if id_instituicao is None:
+                    continue
+
+                nome = input(
+                    "Nome da conta: "
+                )
+
+                tipo = input(
+                    "Tipo "
+                    "(corrente/poupança): "
+                )
+
+                saldo = input(
+                    "Saldo inicial: "
+                )
 
                 print(
-                    "Mês inválido. "
-                    "Use o formato set-26."
+                    cadastrar_conta(
+                        id_instituicao,
+                        nome,
+                        tipo,
+                        saldo
+                    )
                 )
 
-                continue
 
-            valor_planejado = input(
-                "Valor planejado: "
-            )
+            elif acao == "3":
 
-            resultado = cadastrar_orcamento(
-                id_categoria,
-                mes_ano,
-                valor_planejado
-            )
+                id_conta = (
+                    selecionar_conta()
+                )
 
-            print(
-                f"\n{resultado}"
-            )
+                if id_conta:
+
+                    print(
+                        desativar_conta(
+                            id_conta
+                        )
+                    )
 
 
         # ====================================================
-        # 23 - VER EXECUÇÃO DO ORÇAMENTO
+        # CARTÕES
         # ====================================================
 
-        elif escolha == "23":
+        elif escolha == "3":
 
             print(
-                "\n" + "=" * 42
+                "\n1. Ver"
             )
-
             print(
-                "       EXECUÇÃO DO ORÇAMENTO"
+                "2. Cadastrar"
             )
-
             print(
-                "=" * 42
+                "3. Desativar"
             )
 
-            mes_usuario = input(
-                "Mês do orçamento "
-                "(ex.: set-26): "
+            acao = input(
+                "Escolha: "
             )
 
-            mes_ano = (
-                converter_mes_usuario(
-                    mes_usuario
+            if acao == "1":
+
+                for cartao in obter_cartoes():
+                    print(
+                        cartao
+                    )
+
+
+            elif acao == "2":
+
+                id_instituicao = (
+                    selecionar_instituicao()
                 )
-            )
 
-            if mes_ano is None:
+                if id_instituicao is None:
+                    continue
+
+                nome = input(
+                    "Nome do cartão: "
+                )
+
+                limite = input(
+                    "Limite: "
+                )
+
+                fechamento = input(
+                    "Dia de fechamento: "
+                )
+
+                vencimento = input(
+                    "Dia de vencimento: "
+                )
 
                 print(
-                    "Mês inválido. "
-                    "Use o formato set-26."
+                    "\nTitular do cartão:"
                 )
-
-                continue
-
-            print(
-                "\nDe quem é o orçamento?"
-            )
-
-            id_pessoa_usuario = (
-                selecionar_pessoa()
-            )
-
-            if id_pessoa_usuario is None:
-                continue
-
-            resumo = obter_resumo_orcamento(
-                mes_ano,
-                id_pessoa_usuario
-            )
-
-            print(
-                "\n" + "=" * 42
-            )
-
-            print(
-                "     ORÇAMENTO | "
-                f"{mes_usuario.lower()}"
-            )
-
-            print(
-                "=" * 42
-            )
-
-            if not resumo:
 
                 print(
-                    "\nNenhum orçamento definido "
-                    "para esse mês."
+                    "1. Eu [padrão]"
                 )
 
-            else:
+                print(
+                    "2. Outra pessoa"
+                )
 
-                for item in resumo:
+                titular_opcao = input(
+                    "Escolha [Enter = 1]: "
+                ).strip()
 
-                    print(
-                        "\n" + "-" * 42
+                if titular_opcao in (
+                    "",
+                    "1"
+                ):
+                    id_pessoa_titular = (
+                        ID_USUARIO_PRINCIPAL
                     )
 
-                    print(
-                        f"CATEGORIA: "
-                        f"{item['categoria']}"
+                elif titular_opcao == "2":
+
+                    id_pessoa_titular = (
+                        selecionar_pessoa()
                     )
 
-                    print(
-                        "\nPlanejado:  "
-                        f"{formatar_valor(item['planejado'])}"
-                    )
+                    if id_pessoa_titular is None:
+                        continue
+
+                else:
 
                     print(
-                        "Executado:  "
-                        f"{formatar_valor(item['executado'])}"
+                        "Opção inválida."
                     )
 
-                    print(
-                        "Disponível: "
-                        f"{formatar_valor(item['disponivel'])}"
+                    continue
+
+                print(
+                    cadastrar_cartao(
+                        id_instituicao,
+                        nome,
+                        limite,
+                        fechamento,
+                        vencimento,
+                        id_pessoa_titular
                     )
+                )
+
+
+            elif acao == "3":
+
+                id_cartao = (
+                    selecionar_cartao_compra()
+                )
+
+                if id_cartao:
 
                     print(
-                        "\nExecução:   "
-                        f"{item['percentual_execucao']:.1f}%"
+                        inativar_cartao(
+                            id_cartao
+                        )
                     )
 
-                    print(
-                        "Ritmo mês:  "
-                        f"{item['percentual_mes']:.1f}%"
-                    )
 
-                    print(
-                        "\nSemáforo: "
-                        f"{item['semaforo']}"
-                    )
+        # ====================================================
+        # PESSOAS
+        # ====================================================
+
+        elif escolha == "4":
 
             print(
-                "\n" + "=" * 42
+                "\n1. Ver"
+            )
+            print(
+                "2. Cadastrar"
+            )
+            print(
+                "3. Desativar"
             )
 
+            acao = input(
+                "Escolha: "
+            )
+
+            if acao == "1":
+
+                for pessoa in obter_pessoas():
+                    print(
+                        pessoa
+                    )
+
+
+            elif acao == "2":
+
+                nome = input(
+                    "Nome: "
+                )
+
+                print(
+                    cadastrar_pessoa(
+                        nome
+                    )
+                )
+
+
+            elif acao == "3":
+
+                id_pessoa = (
+                    selecionar_pessoa()
+                )
+
+                if id_pessoa:
+
+                    print(
+                        inativar_pessoa(
+                            id_pessoa
+                        )
+                    )
+
 
         # ====================================================
-        # 0 - SAIR
+        # CATEGORIAS / ITENS
         # ====================================================
+
+        elif escolha == "5":
+
+            print(
+                "\n=== CATEGORIAS ==="
+            )
+
+            for categoria in (
+                obter_resumo_categorias()
+            ):
+                print(
+                    categoria
+                )
+
+            print(
+                "\n=== ITENS ==="
+            )
+
+            for item in obter_itens():
+                print(
+                    item
+                )
+
+            print(
+                "\n1. Cadastrar item"
+            )
+            print(
+                "2. Desativar item"
+            )
+            print(
+                "0. Voltar"
+            )
+
+            acao = input(
+                "Escolha: "
+            )
+
+            if acao == "1":
+
+                id_categoria = (
+                    selecionar_categoria()
+                )
+
+                if id_categoria is None:
+                    continue
+
+                nome = input(
+                    "Nome do item: "
+                )
+
+                print(
+                    cadastrar_item(
+                        id_categoria,
+                        nome
+                    )
+                )
+
+
+            elif acao == "2":
+
+                try:
+                    id_item = int(
+                        input(
+                            "ID do item: "
+                        )
+                    )
+
+                except ValueError:
+                    continue
+
+                print(
+                    inativar_item(
+                        id_item
+                    )
+                )
+
+
+        # ====================================================
+        # MEIOS DE PAGAMENTO
+        # ====================================================
+
+        elif escolha == "6":
+
+            print(
+                "\n=== MEIOS DE PAGAMENTO ==="
+            )
+
+            for meio in (
+                obter_resumo_meios_pagamento()
+            ):
+                print(
+                    meio
+                )
+
+
+        elif escolha == "0":
+            return
+
+
+# ============================================================
+# MENU PRINCIPAL
+# ============================================================
+
+def iniciar_taverna():
+
+    while True:
+
+        print(
+            "\n" + "=" * 55
+        )
+
+        print(
+            "                  FINANCE QUEST"
+        )
+
+        print(
+            "=" * 55
+        )
+
+        print(
+            "\n1. Registrar movimentação"
+        )
+
+        print(
+            "2. Registrar compra no cartão"
+        )
+
+        print(
+            "3. Orçamento"
+        )
+
+        print(
+            "4. Cartões"
+        )
+
+        print(
+            "5. Acerto de contas"
+        )
+
+        print(
+            "6. Consultar lançamentos"
+        )
+
+        print(
+            "7. Configurações"
+        )
+
+        print(
+            "\n0. Sair"
+        )
+
+        escolha = input(
+            "\nDigite sua opção: "
+        )
+
+
+        if escolha == "1":
+            fluxo_registrar_movimentacao()
+
+
+        elif escolha == "2":
+            fluxo_registrar_compra()
+
+
+        elif escolha == "3":
+            menu_orcamento()
+
+
+        elif escolha == "4":
+            menu_cartoes()
+
+
+        elif escolha == "5":
+            menu_acerto()
+
+
+        elif escolha == "6":
+            menu_consultas()
+
+
+        elif escolha == "7":
+            menu_configuracoes()
+
 
         elif escolha == "0":
 
@@ -1874,15 +2606,10 @@ def iniciar_taverna():
             break
 
 
-        # ====================================================
-        # OPÇÃO INVÁLIDA
-        # ====================================================
-
         else:
 
             print(
-                "\nOpção inválida. "
-                "Escolha uma opção do menu."
+                "\nOpção inválida."
             )
 
 

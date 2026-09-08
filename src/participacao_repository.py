@@ -9,15 +9,20 @@ def listar_compras_para_rateio():
         SELECT
             c.id_compra,
             c.data,
-            c.local,
+            c.observacao,
             c.valor_total,
             c.id_pessoa_pagador,
             p.nome
+
         FROM compra c
+
         JOIN pessoa p
             ON c.id_pessoa_pagador = p.id
+
         WHERE c.ativo = 1
-        ORDER BY c.data DESC;
+
+        ORDER BY c.data DESC,
+                 c.id_compra DESC;
     """)
 
     dados = cursor.fetchall()
@@ -35,10 +40,14 @@ def buscar_compra_por_id(id_compra):
             id_compra,
             valor_total,
             id_pessoa_pagador
+
         FROM compra
+
         WHERE id_compra = ?
           AND ativo = 1;
-    """, (id_compra,))
+    """, (
+        id_compra,
+    ))
 
     compra = cursor.fetchone()
 
@@ -46,7 +55,9 @@ def buscar_compra_por_id(id_compra):
     return compra
 
 
-def listar_participacoes_por_compra(id_compra):
+def listar_participacoes_por_compra(
+    id_compra
+):
     conexao = conectar_base()
     cursor = conexao.cursor()
 
@@ -56,12 +67,18 @@ def listar_participacoes_por_compra(id_compra):
             part.id_pessoa,
             p.nome,
             part.valor_cota
+
         FROM participacao part
+
         JOIN pessoa p
             ON part.id_pessoa = p.id
+
         WHERE part.id_compra = ?
+
         ORDER BY p.nome;
-    """, (id_compra,))
+    """, (
+        id_compra,
+    ))
 
     dados = cursor.fetchall()
 
@@ -69,27 +86,25 @@ def listar_participacoes_por_compra(id_compra):
     return dados
 
 
-def substituir_rateio(id_compra, cotas):
-    """
-    cotas:
-    [
-        (id_pessoa, valor_cota),
-        (id_pessoa, valor_cota)
-    ]
-    """
-
+def substituir_rateio(
+    id_compra,
+    cotas
+):
     conexao = conectar_base()
     cursor = conexao.cursor()
 
     try:
-        # Remove o rateio anterior da compra.
         cursor.execute("""
             DELETE FROM participacao
             WHERE id_compra = ?;
-        """, (id_compra,))
+        """, (
+            id_compra,
+        ))
 
-        # Insere o novo rateio.
-        for id_pessoa, valor_cota in cotas:
+        for (
+            id_pessoa,
+            valor_cota
+        ) in cotas:
 
             cursor.execute("""
                 INSERT INTO participacao (
@@ -121,11 +136,15 @@ def listar_dividas_brutas():
     cursor.execute("""
         SELECT
             c.id_compra,
+
             pagador.id,
             pagador.nome,
+
             responsavel.id,
             responsavel.nome,
+
             part.valor_cota
+
         FROM participacao part
 
         JOIN compra c
@@ -138,7 +157,8 @@ def listar_dividas_brutas():
             ON part.id_pessoa = responsavel.id
 
         WHERE c.ativo = 1
-          AND part.id_pessoa != c.id_pessoa_pagador;
+          AND part.id_pessoa
+              != c.id_pessoa_pagador;
     """)
 
     dados = cursor.fetchall()

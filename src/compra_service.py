@@ -5,12 +5,25 @@ from compra_repository import (
     inserir_compra,
     inserir_parcela,
     listar_compras,
-    listar_parcelas_por_compra,
-    buscar_cartao_por_meio_pagamento
+    listar_parcelas_por_compra
+)
+
+from cartao_repository import (
+    buscar_cartao_por_id
+)
+
+from participacao_service import (
+    registrar_rateio
 )
 
 
-def adicionar_meses(data_base, meses):
+ID_USUARIO_PRINCIPAL = 1
+
+
+def adicionar_meses(
+    data_base,
+    meses
+):
     ano = data_base.year
     mes = data_base.month + meses
 
@@ -18,14 +31,22 @@ def adicionar_meses(data_base, meses):
         mes -= 12
         ano += 1
 
-    ultimo_dia = calendar.monthrange(ano, mes)[1]
-    dia = min(data_base.day, ultimo_dia)
+    ultimo_dia = calendar.monthrange(
+        ano,
+        mes
+    )[1]
+
+    dia = min(
+        data_base.day,
+        ultimo_dia
+    )
 
     return data_base.replace(
         year=ano,
         month=mes,
         day=dia
     )
+
 
 def calcular_primeiro_vencimento(
     data_compra,
@@ -35,18 +56,25 @@ def calcular_primeiro_vencimento(
     ano = data_compra.year
     mes = data_compra.month
 
-    # Compra passou do fechamento:
-    # vai para a próxima fatura.
-    if data_compra.day > dia_fechamento:
+    if (
+        data_compra.day
+        > dia_fechamento
+    ):
         mes += 1
 
         if mes > 12:
             mes = 1
             ano += 1
 
-    # Evita datas impossíveis, como dia 31 em fevereiro.
-    ultimo_dia = calendar.monthrange(ano, mes)[1]
-    dia = min(dia_vencimento, ultimo_dia)
+    ultimo_dia = calendar.monthrange(
+        ano,
+        mes
+    )[1]
+
+    dia = min(
+        dia_vencimento,
+        ultimo_dia
+    )
 
     return datetime(
         ano,
@@ -54,76 +82,185 @@ def calcular_primeiro_vencimento(
         dia
     )
 
+
 def cadastrar_compra(
     data,
-    local,
+    observacao,
     valor_total,
     id_categoria,
     id_item,
-    id_pessoa_pagador,
-    id_meio_pagamento,
-    quantidade_parcelas
+    id_cartao,
+    quantidade_parcelas,
+    responsabilidades=None
 ):
-    if local is None or local.strip() == "":
-        return "Local da compra não pode ser vazio."
-
-    local = local.strip()
+    observacao = (
+        observacao.strip()
+        if observacao
+        else ""
+    )
 
     try:
-        valor_total = float(valor_total)
-        id_categoria = int(id_categoria)
-        id_item = int(id_item)
-        id_pessoa_pagador = int(id_pessoa_pagador)
-        id_meio_pagamento = int(id_meio_pagamento)
-        quantidade_parcelas = int(quantidade_parcelas)
+        valor_total = float(
+            valor_total
+        )
 
-    except ValueError:
-        return "Existem valores numéricos inválidos."
+        id_categoria = int(
+            id_categoria
+        )
+
+        id_item = int(
+            id_item
+        )
+
+        id_cartao = int(
+            id_cartao
+        )
+
+        quantidade_parcelas = int(
+            quantidade_parcelas
+        )
+
+    except (ValueError, TypeError):
+        return (
+            "Existem valores inválidos."
+        )
 
     if valor_total <= 0:
-        return "O valor da compra deve ser maior que zero."
+        return (
+            "O valor precisa ser "
+            "maior que zero."
+        )
 
     if quantidade_parcelas <= 0:
-        return "A quantidade de parcelas deve ser maior que zero."
+        return (
+            "Quantidade de parcelas inválida."
+        )
 
     try:
-        data_compra = datetime.strptime(data, "%Y-%m-%d")
+        data_compra = datetime.strptime(
+            data,
+            "%Y-%m-%d"
+        )
 
     except ValueError:
-        return "Data inválida. Use YYYY-MM-DD."
-    
-    cartao = buscar_cartao_por_meio_pagamento(
-        id_meio_pagamento
+        return (
+            "Data inválida. "
+            "Use AAAA-MM-DD."
+        )
+
+
+    # ========================================================
+    # CARTÃO
+    # ========================================================
+
+    cartao = buscar_cartao_por_id(
+        id_cartao
     )
 
     if cartao is None:
-        return "O meio de pagamento informado não está vinculado a um cartão ativo."
+        return (
+            "Cartão não encontrado."
+        )
 
-    id_cartao, nome_cartao, dia_fechamento, dia_vencimento = cartao
-
-    primeiro_vencimento = calcular_primeiro_vencimento(
-        data_compra,
+    (
+        id_cartao,
+        nome_cartao,
+        limite_total,
         dia_fechamento,
-        dia_vencimento
+        dia_vencimento,
+        ativo,
+        id_pessoa_pagador
+    ) = cartao
+
+    if ativo != 1:
+        return (
+            "O cartão escolhido está inativo."
+        )
+
+    if id_pessoa_pagador is None:
+        id_pessoa_pagador = (
+            ID_USUARIO_PRINCIPAL
+        )
+
+
+    # ========================================================
+    # FORMA DE PAGAMENTO AUTOMÁTICA
+    # ========================================================
+
+    if quantidade_parcelas == 1:
+        # Crédito à vista
+        id_meio_pagamento = 4
+
+    else:
+        # Crédito parcelado
+        id_meio_pagamento = 5
+
+
+    # ========================================================
+    # PRIMEIRO VENCIMENTO
+    # ========================================================
+
+    primeiro_vencimento = (
+        calcular_primeiro_vencimento(
+            data_compra,
+            dia_fechamento,
+            dia_vencimento
+        )
     )
+
+
+    # ========================================================
+    # COMPRA
+    # ========================================================
 
     id_compra = inserir_compra(
         data,
-        local,
+        observacao,
         valor_total,
         id_categoria,
         id_item,
         id_pessoa_pagador,
         id_meio_pagamento,
+        id_cartao,
         quantidade_parcelas
     )
 
-    valor_parcela = round(
-        valor_total / quantidade_parcelas,
+
+    # ========================================================
+    # PARCELAS
+    # ========================================================
+
+    valor_base = round(
+        valor_total
+        / quantidade_parcelas,
         2
     )
 
-    for numero in range(1, quantidade_parcelas + 1):
+    for numero in range(
+        1,
+        quantidade_parcelas + 1
+    ):
+
+        if numero < quantidade_parcelas:
+
+            valor_parcela = (
+                valor_base
+            )
+
+        else:
+
+            valor_parcela = round(
+                valor_total
+                - (
+                    valor_base
+                    * (
+                        quantidade_parcelas
+                        - 1
+                    )
+                ),
+                2
+            )
+
         data_parcela = adicionar_meses(
             primeiro_vencimento,
             numero - 1
@@ -132,40 +269,54 @@ def cadastrar_compra(
         inserir_parcela(
             id_compra,
             numero,
-            data_parcela.strftime("%Y-%m-%d"),
+            data_parcela.strftime(
+                "%Y-%m-%d"
+            ),
             valor_parcela
         )
 
-    return f"Compra cadastrada com sucesso. ID: {id_compra}"
+
+    # ========================================================
+    # RESPONSABILIDADE
+    # ========================================================
+
+    if responsabilidades is None:
+
+        responsabilidades = [
+            (
+                ID_USUARIO_PRINCIPAL,
+                valor_total
+            )
+        ]
+
+    resultado_rateio = registrar_rateio(
+        id_compra,
+        responsabilidades
+    )
+
+    if resultado_rateio != (
+        "Rateio registrado com sucesso."
+    ):
+
+        return (
+            "Compra cadastrada, mas houve "
+            "problema na responsabilidade: "
+            f"{resultado_rateio}"
+        )
+
+    return (
+        "Compra cadastrada com sucesso. "
+        f"ID: {id_compra}"
+    )
 
 
 def obter_compras():
     return listar_compras()
 
 
-def obter_parcelas(id_compra):
-    return listar_parcelas_por_compra(id_compra)
-
-
-if __name__ == "__main__":
-    resultado = cadastrar_compra(
-        "2026-09-04",
-        "Teste Depois Fechamento",
-        300,
-        2,
-        1,
-        2,
-        3
+def obter_parcelas(
+    id_compra
+):
+    return listar_parcelas_por_compra(
+        id_compra
     )
-
-    print(resultado)
-
-    if resultado.startswith("Compra cadastrada com sucesso"):
-        id_compra = int(resultado.split(":")[-1].strip())
-
-        print("\nPARCELAS GERADAS:")
-
-        parcelas = obter_parcelas(id_compra)
-
-        for parcela in parcelas:
-            print(parcela)
