@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS instituicao (
     ativo INTEGER DEFAULT 1
 );
 
+
 CREATE TABLE IF NOT EXISTS conta (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     id_instituicao INTEGER NOT NULL,
@@ -35,7 +36,19 @@ CREATE TABLE IF NOT EXISTS cartao (
     ativo INTEGER DEFAULT 1,
     FOREIGN KEY (id_instituicao) REFERENCES instituicao(id)
 );
+
+CREATE TABLE IF NOT EXISTS item (
+    id_item INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_categoria INTEGER NOT NULL,
+    nome TEXT NOT NULL,
+    ativo INTEGER NOT NULL DEFAULT 1
+        CHECK (ativo IN (0, 1)),
+
+    FOREIGN KEY (id_categoria)
+        REFERENCES categoria(id)
+);
 """
+
 
 # 4. Executando o script SQL inteiro
 cursor.executescript(comandos_sql)

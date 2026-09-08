@@ -1,14 +1,29 @@
 from database import conectar_base
 
 # A função agora recebe os ingredientes exatos que a tabela 'movimentacao' exige
-def inserir_nova_movimentacao(data, descricao, valor, id_categoria, id_pessoa, id_meio_pagamento):
+def inserir_nova_movimentacao(    data,
+    descricao,
+    valor,
+    id_categoria,
+    id_item,
+    id_pessoa,
+    id_meio_pagamento
+):
     conexao = conectar_base()
     cursor = conexao.cursor()
     
     # Usamos interrogações para cada coluna que vamos preencher
     comando_sql = """
-    INSERT INTO movimentacao (data, descricao, valor, id_categoria, id_pessoa, id_meio_pagamento)
-    VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO movimentacao (
+    data,
+    descricao,
+    valor,
+    id_categoria,
+    id_item,
+    id_pessoa,
+    id_meio_pagamento
+)
+VALUES (?, ?, ?, ?, ?, ?, ?);
     """
     
     # Executamos o comando passando a tupla de ingredientes logo em seguida
