@@ -1,5 +1,4 @@
 from datetime import datetime
-import calendar
 
 from orcamento_repository import (
     salvar_orcamento,
@@ -8,23 +7,35 @@ from orcamento_repository import (
 )
 
 
+ID_USUARIO_PRINCIPAL = 1
+
+
+# ============================================================
+# CADASTRAR / ATUALIZAR ORÇAMENTO
+# ============================================================
+
 def cadastrar_orcamento(
     id_categoria,
     mes_ano,
     valor_planejado
 ):
     try:
-        id_categoria = int(id_categoria)
-        valor_planejado = float(valor_planejado)
+        id_categoria = int(
+            id_categoria
+        )
 
-    except ValueError:
-        return "Categoria ou valor inválido."
+        valor_planejado = float(
+            valor_planejado
+        )
 
-    if id_categoria <= 0:
-        return "Categoria inválida."
+    except (ValueError, TypeError):
+        return "Valores inválidos."
 
     if valor_planejado < 0:
-        return "O valor planejado não pode ser negativo."
+        return (
+            "O valor planejado não pode "
+            "ser negativo."
+        )
 
     try:
         datetime.strptime(
@@ -33,7 +44,10 @@ def cadastrar_orcamento(
         )
 
     except ValueError:
-        return "Mês inválido."
+        return (
+            "Mês inválido. "
+            "Use AAAA-MM."
+        )
 
     salvar_orcamento(
         id_categoria,
@@ -41,33 +55,88 @@ def cadastrar_orcamento(
         valor_planejado
     )
 
-    return "Orçamento salvo com sucesso."
+    return (
+        "Orçamento salvo com sucesso."
+    )
 
 
-def calcular_percentual_mes(mes_ano):
+# ============================================================
+# SEMÁFORO
+# ============================================================
+
+def calcular_semaforo(
+    percentual_execucao,
+    percentual_mes
+):
+
+    # Mês futuro:
+    # ainda não existe ritmo de execução.
+    if percentual_mes == 0:
+        return "PROJEÇÃO"
+
+    diferenca = (
+        percentual_execucao
+        - percentual_mes
+    )
+
+    if percentual_execucao >= 100:
+        return "VERMELHO"
+
+    if diferenca > 15:
+        return "VERMELHO"
+
+    if diferenca > 5:
+        return "AMARELO"
+
+    return "VERDE"
+
+
+# ============================================================
+# PERCENTUAL DO MÊS
+# ============================================================
+
+def calcular_percentual_mes(
+    mes_ano
+):
+    hoje = datetime.now()
+
     ano, mes = map(
         int,
         mes_ano.split("-")
     )
 
-    hoje = datetime.now()
-
-    # Mês passado = 100%
-    if (ano, mes) < (hoje.year, hoje.month):
+    # Mês passado:
+    # já consideramos 100% transcorrido.
+    if (
+        ano < hoje.year
+        or (
+            ano == hoje.year
+            and mes < hoje.month
+        )
+    ):
         return 100.0
 
-    # Mês futuro = 0%
-    if (ano, mes) > (hoje.year, hoje.month):
+    # Mês futuro:
+    if (
+        ano > hoje.year
+        or (
+            ano == hoje.year
+            and mes > hoje.month
+        )
+    ):
         return 0.0
 
     # Mês atual
-    total_dias = calendar.monthrange(
+    import calendar
+
+    dias_mes = calendar.monthrange(
         ano,
         mes
     )[1]
 
     percentual = (
-        hoje.day / total_dias
+        hoje.day
+        / dias_mes
     ) * 100
 
     return round(
@@ -76,34 +145,22 @@ def calcular_percentual_mes(mes_ano):
     )
 
 
-def calcular_semaforo(
-    percentual_execucao,
-    percentual_mes
-):
-    diferenca = (
-        percentual_execucao
-        - percentual_mes
-    )
+# ============================================================
+# EXECUÇÃO COMPLETA DO MÊS
+# ============================================================
 
-    if diferenca <= 5:
-        return "VERDE"
-
-    if diferenca <= 15:
-        return "AMARELO"
-
-    return "VERMELHO"
-
-
-def obter_resumo_orcamento(
+def obter_execucao_orcamento(
     mes_ano,
-    id_pessoa_usuario
+    id_pessoa_usuario=ID_USUARIO_PRINCIPAL
 ):
     orcamentos = listar_orcamentos_mes(
         mes_ano
     )
 
-    percentual_mes = calcular_percentual_mes(
-        mes_ano
+    percentual_mes = (
+        calcular_percentual_mes(
+            mes_ano
+        )
     )
 
     resultado = []
@@ -111,32 +168,34 @@ def obter_resumo_orcamento(
     for (
         id_orcamento,
         id_categoria,
-        nome_categoria,
-        valor_planejado
+        categoria,
+        planejado
     ) in orcamentos:
 
-        executado = calcular_executado_categoria(
-            id_categoria,
-            mes_ano,
-            id_pessoa_usuario
+        executado = (
+            calcular_executado_categoria(
+                id_categoria,
+                mes_ano,
+                id_pessoa_usuario
+            )
         )
 
-        disponivel = (
-            valor_planejado - executado
+        disponivel = round(
+            planejado - executado,
+            2
         )
 
-        if valor_planejado > 0:
-            percentual_execucao = (
-                executado / valor_planejado
-            ) * 100
+        if planejado > 0:
+            percentual_execucao = round(
+                (
+                    executado
+                    / planejado
+                ) * 100,
+                1
+            )
 
         else:
-            percentual_execucao = 0
-
-        percentual_execucao = round(
-            percentual_execucao,
-            1
-        )
+            percentual_execucao = 0.0
 
         semaforo = calcular_semaforo(
             percentual_execucao,
@@ -144,24 +203,16 @@ def obter_resumo_orcamento(
         )
 
         resultado.append({
-            "categoria": nome_categoria,
-            "planejado": valor_planejado,
+            "id_categoria": id_categoria,
+            "categoria": categoria,
+            "planejado": planejado,
             "executado": executado,
             "disponivel": disponivel,
-            "percentual_execucao": percentual_execucao,
-            "percentual_mes": percentual_mes,
+            "percentual_execucao":
+                percentual_execucao,
+            "percentual_mes":
+                percentual_mes,
             "semaforo": semaforo
         })
 
     return resultado
-
-
-if __name__ == "__main__":
-
-    resumo = obter_resumo_orcamento(
-        "2026-08",
-        1
-    )
-
-    for item in resumo:
-        print(item)

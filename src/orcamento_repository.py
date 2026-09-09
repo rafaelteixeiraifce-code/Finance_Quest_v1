@@ -1,6 +1,10 @@
 from database import conectar_base
 
 
+# ============================================================
+# ORÇAMENTO PLANEJADO
+# ============================================================
+
 def salvar_orcamento(
     id_categoria,
     mes_ano,
@@ -40,6 +44,7 @@ def listar_orcamentos_mes(mes_ano):
             o.id_categoria,
             c.nome,
             o.valor_planejado
+
         FROM orcamento o
 
         JOIN categoria c
@@ -48,7 +53,9 @@ def listar_orcamentos_mes(mes_ano):
         WHERE o.mes_ano = ?
 
         ORDER BY c.nome;
-    """, (mes_ano,))
+    """, (
+        mes_ano,
+    ))
 
     dados = cursor.fetchall()
 
@@ -57,7 +64,59 @@ def listar_orcamentos_mes(mes_ano):
     return dados
 
 
-def calcular_executado_categoria(
+# ============================================================
+# SAÍDAS DIRETAS
+# PIX / DÉBITO / TRANSFERÊNCIA
+# ============================================================
+
+def calcular_saidas_diretas(
+    id_categoria,
+    mes_ano,
+    id_pessoa_usuario
+):
+    conexao = conectar_base()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT
+            COALESCE(
+                SUM(m.valor),
+                0
+            )
+
+        FROM movimentacao m
+
+        WHERE m.tipo = 'saida'
+
+          AND m.id_categoria = ?
+
+          AND m.id_pessoa = ?
+
+          AND substr(
+                m.data,
+                1,
+                7
+              ) = ?
+
+          AND m.ativo = 1;
+    """, (
+        id_categoria,
+        id_pessoa_usuario,
+        mes_ano
+    ))
+
+    valor = cursor.fetchone()[0]
+
+    conexao.close()
+
+    return valor
+
+
+# ============================================================
+# PARCELAS DE CARTÃO DO MÊS
+# ============================================================
+
+def calcular_parcelas_responsabilidade(
     id_categoria,
     mes_ano,
     id_pessoa_usuario
@@ -71,27 +130,31 @@ def calcular_executado_categoria(
                 SUM(
                     CASE
 
-                        -- Se a compra possui rateio,
-                        -- usamos somente a cota do usuário.
-                        WHEN EXISTS (
-                            SELECT 1
-                            FROM participacao part
-                            WHERE part.id_compra = c.id_compra
-                        )
-                        THEN COALESCE(
-                            (
-                                SELECT part.valor_cota
-                                FROM participacao part
-                                WHERE part.id_compra = c.id_compra
-                                  AND part.id_pessoa = ?
-                            ),
-                            0
-                        )
+                        -- Existe rateio/responsabilidade
+                        -- registrada para essa pessoa.
+                        WHEN part.valor_cota IS NOT NULL
 
-                        -- Sem rateio, consideramos o valor
-                        -- integral se o usuário for o pagador.
-                        WHEN c.id_pessoa_pagador = ?
-                        THEN c.valor_total
+                        THEN
+                            p.valor
+                            *
+                            (
+                                part.valor_cota
+                                / c.valor_total
+                            )
+
+
+                        -- Fallback para compras antigas:
+                        -- sem participação registrada,
+                        -- mas pagas pelo próprio usuário.
+                        WHEN NOT EXISTS (
+                            SELECT 1
+                            FROM participacao px
+                            WHERE px.id_compra = c.id_compra
+                        )
+                        AND c.id_pessoa_pagador = ?
+
+                        THEN p.valor
+
 
                         ELSE 0
 
@@ -100,11 +163,26 @@ def calcular_executado_categoria(
                 0
             )
 
-        FROM compra c
+        FROM parcela p
+
+        JOIN compra c
+            ON p.id_compra = c.id_compra
+
+        LEFT JOIN participacao part
+            ON part.id_compra = c.id_compra
+           AND part.id_pessoa = ?
 
         WHERE c.id_categoria = ?
-          AND substr(c.data, 1, 7) = ?
-          AND c.ativo = 1;
+
+          AND substr(
+                p.data_vencimento,
+                1,
+                7
+              ) = ?
+
+          AND c.ativo = 1
+
+          AND p.status = 'pendente';
     """, (
         id_pessoa_usuario,
         id_pessoa_usuario,
@@ -116,21 +194,74 @@ def calcular_executado_categoria(
 
     conexao.close()
 
-    return valor
+    return round(
+        valor,
+        2
+    )
 
-if __name__ == "__main__":
 
-    print("ORÇAMENTOS:")
-    print(
-        listar_orcamentos_mes(
-            "2026-08"
+# ============================================================
+# EXECUTADO TOTAL
+# ============================================================
+
+def calcular_executado_categoria(
+    id_categoria,
+    mes_ano,
+    id_pessoa_usuario
+):
+    saidas_diretas = calcular_saidas_diretas(
+        id_categoria,
+        mes_ano,
+        id_pessoa_usuario
+    )
+
+    parcelas_cartao = (
+        calcular_parcelas_responsabilidade(
+            id_categoria,
+            mes_ano,
+            id_pessoa_usuario
         )
     )
 
-    print("\nEXECUTADO CATEGORIA 2:")
+    executado = (
+        saidas_diretas
+        + parcelas_cartao
+    )
+
+    return round(
+        executado,
+        2
+    )
+
+if __name__ == "__main__":
+
+    ID_USUARIO = 1
+
+    print("\n=== TESTE ORÇAMENTO ===")
+
+    print("\nSaídas diretas:")
+    print(
+        calcular_saidas_diretas(
+            1,
+            "2026-10",
+            ID_USUARIO
+        )
+    )
+
+    print("\nParcelas de cartão:")
+    print(
+        calcular_parcelas_responsabilidade(
+            1,
+            "2026-10",
+            ID_USUARIO
+        )
+    )
+
+    print("\nExecutado total:")
     print(
         calcular_executado_categoria(
-            2,
-            "2026-08"
+            1,
+            "2026-10",
+            ID_USUARIO
         )
     )

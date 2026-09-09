@@ -58,7 +58,7 @@ from participacao_service import (
 
 from orcamento_service import (
     cadastrar_orcamento,
-    obter_resumo_orcamento
+    obter_execucao_orcamento
 )
 
 
@@ -109,6 +109,96 @@ def obter_meses_consulta(
             ano -= 1
 
     return meses
+
+def selecionar_mes_orcamento(
+    meses_futuros=12
+):
+    hoje = datetime.now()
+
+    meses = []
+
+    ano = hoje.year
+    mes = hoje.month
+
+    for _ in range(
+        meses_futuros + 1
+    ):
+        chave = (
+            f"{ano}-"
+            f"{mes:02d}"
+        )
+
+        nome = (
+            f"{MESES[mes]}-"
+            f"{str(ano)[2:]}"
+        )
+
+        meses.append(
+            (
+                chave,
+                nome
+            )
+        )
+
+        mes += 1
+
+        if mes == 13:
+            mes = 1
+            ano += 1
+
+    print(
+        "\n=== PERÍODO DO ORÇAMENTO ==="
+    )
+
+    for indice, (
+        chave,
+        nome
+    ) in enumerate(
+        meses,
+        start=1
+    ):
+
+        if indice == 1:
+            print(
+                f"{indice}. "
+                f"{nome} [atual]"
+            )
+
+        else:
+            print(
+                f"{indice}. {nome}"
+            )
+
+    escolha = input(
+        "\nEscolha "
+        "[Enter = mês atual]: "
+    ).strip()
+
+    if escolha == "":
+        return meses[0]
+
+    try:
+        escolha = int(
+            escolha
+        )
+
+    except ValueError:
+        print(
+            "Opção inválida."
+        )
+        return None
+
+    if not 1 <= escolha <= len(
+        meses
+    ):
+        print(
+            "Opção inválida."
+        )
+        return None
+
+    return meses[
+        escolha - 1
+    ]
 
 
 def selecionar_mes_consulta():
@@ -194,6 +284,88 @@ MESES = {
     12: "dez"
 }
 
+def selecionar_mes_execucao_orcamento():
+    hoje = datetime.now()
+
+    meses = []
+
+    # 6 meses anteriores
+    ano = hoje.year
+    mes = hoje.month
+
+    anteriores = []
+
+    for _ in range(6):
+        mes -= 1
+
+        if mes == 0:
+            mes = 12
+            ano -= 1
+
+        anteriores.append(
+            (
+                f"{ano}-{mes:02d}",
+                f"{MESES[mes]}-{str(ano)[2:]}"
+            )
+        )
+
+    anteriores.reverse()
+    meses.extend(anteriores)
+
+    # Mês atual + 12 meses futuros
+    ano = hoje.year
+    mes = hoje.month
+
+    for _ in range(13):
+        meses.append(
+            (
+                f"{ano}-{mes:02d}",
+                f"{MESES[mes]}-{str(ano)[2:]}"
+            )
+        )
+
+        mes += 1
+
+        if mes == 13:
+            mes = 1
+            ano += 1
+
+    indice_atual = len(anteriores)
+
+    print("\n=== PERÍODO DO ORÇAMENTO ===")
+
+    for indice, (chave, nome) in enumerate(
+        meses,
+        start=1
+    ):
+        if indice - 1 == indice_atual:
+            print(
+                f"{indice}. {nome} [atual]"
+            )
+        else:
+            print(
+                f"{indice}. {nome}"
+            )
+
+    escolha = input(
+        "\nEscolha [Enter = mês atual]: "
+    ).strip()
+
+    if escolha == "":
+        return meses[indice_atual]
+
+    try:
+        escolha = int(escolha)
+
+    except ValueError:
+        print("Opção inválida.")
+        return None
+
+    if not 1 <= escolha <= len(meses):
+        print("Opção inválida.")
+        return None
+
+    return meses[escolha - 1]
 
 def formatar_valor(valor):
     valor_formatado = f"{valor:,.2f}"
@@ -1234,40 +1406,217 @@ def menu_orcamento():
 
     while True:
 
-        print(
-            "\n" + "=" * 45
-        )
+        print("\n" + "=" * 50)
+        print("                 ORÇAMENTO")
+        print("=" * 50)
 
-        print(
-            "               ORÇAMENTO"
-        )
+        print("1. Ver execução do mês")
+        print("2. Definir orçamento")
+        print("0. Voltar")
 
-        print(
-            "=" * 45
-        )
-
-        print(
-            "1. Definir orçamento"
-        )
-
-        print(
-            "2. Ver execução e semáforo"
-        )
-
-        print(
-            "0. Voltar"
-        )
-
-        escolha = input(
+        opcao = input(
             "\nEscolha: "
-        )
+        ).strip()
 
 
-        # ----------------------------------------------------
-        # DEFINIR
-        # ----------------------------------------------------
+        # ====================================================
+        # VER EXECUÇÃO
+        # ====================================================
 
-        if escolha == "1":
+        if opcao == "1":
+
+            periodo = selecionar_mes_execucao_orcamento()
+
+            if periodo is None:
+                continue
+
+            mes_ano, nome_mes = periodo
+
+            if mes_ano is None:
+                print(
+                    "\nEscolha um mês específico "
+                    "para consultar o orçamento."
+                )
+                continue
+
+            execucao = (
+                obter_execucao_orcamento(
+                    mes_ano
+                )
+            )
+
+            print("\n" + "=" * 50)
+            print(
+                f"       EXECUÇÃO DO ORÇAMENTO — "
+                f"{nome_mes.upper()}"
+            )
+            print("=" * 50)
+
+            if not execucao:
+
+                print(
+                    "\nNenhum orçamento definido "
+                    "para esse mês."
+                )
+
+                continue
+
+
+            total_planejado = 0
+            total_executado = 0
+
+            for categoria in execucao:
+
+                planejado = (
+                    categoria["planejado"]
+                )
+
+                executado = (
+                    categoria["executado"]
+                )
+
+                disponivel = (
+                    categoria["disponivel"]
+                )
+
+                percentual = (
+                    categoria[
+                        "percentual_execucao"
+                    ]
+                )
+
+                semaforo = (
+                    categoria["semaforo"]
+                )
+
+                total_planejado += planejado
+                total_executado += executado
+
+                print(
+                    "\n" + "-" * 50
+                )
+
+                print(
+                    categoria[
+                        "categoria"
+                    ].upper()
+                )
+
+                print(
+                    f"Planejado : "
+                    f"{formatar_valor(planejado)}"
+                )
+
+                print(
+                    f"Executado : "
+                    f"{formatar_valor(executado)}"
+                )
+
+                print(
+                    f"Disponível: "
+                    f"{formatar_valor(disponivel)}"
+                )
+
+                print(
+                    f"Execução  : "
+                    f"{percentual:.1f}%"
+                )
+
+                print(
+                    f"Semáforo  : "
+                    f"{semaforo}"
+                )
+
+
+            # ================================================
+            # RESUMO DO MÊS
+            # ================================================
+
+            total_disponivel = round(
+                total_planejado
+                - total_executado,
+                2
+            )
+
+            if total_planejado > 0:
+
+                percentual_total = round(
+                    (
+                        total_executado
+                        / total_planejado
+                    ) * 100,
+                    1
+                )
+
+            else:
+                percentual_total = 0
+
+
+            print("\n" + "=" * 50)
+            print("             RESUMO DO MÊS")
+            print("=" * 50)
+
+            print(
+                f"Planejado total : "
+                f"{formatar_valor(total_planejado)}"
+            )
+
+            print(
+                f"Executado total : "
+                f"{formatar_valor(total_executado)}"
+            )
+
+            print(
+                f"Disponível total: "
+                f"{formatar_valor(total_disponivel)}"
+            )
+
+            print(
+                f"Execução total  : "
+                f"{percentual_total:.1f}%"
+            )
+
+
+            # Ritmo temporal
+            percentual_mes = (
+                execucao[0][
+                    "percentual_mes"
+                ]
+            )
+
+            print(
+                f"Mês transcorrido: "
+                f"{percentual_mes:.1f}%"
+            )
+
+            print("=" * 50)
+
+
+        # ====================================================
+        # DEFINIR ORÇAMENTO
+        # ====================================================
+
+        elif opcao == "2":
+
+            periodo = selecionar_mes_orcamento()
+
+            if periodo is None:
+                continue
+
+            mes_ano, nome_mes = periodo
+
+            if mes_ano is None:
+                print(
+                    "Escolha um mês específico."
+                )
+                continue
+
+
+            print(
+                f"\n=== ORÇAMENTO "
+                f"{nome_mes.upper()} ==="
+            )
+
 
             id_categoria = (
                 selecionar_categoria()
@@ -1276,29 +1625,13 @@ def menu_orcamento():
             if id_categoria is None:
                 continue
 
-            mes_usuario = input(
-                "Mês (ex.: set-26): "
-            )
-
-            mes_ano = (
-                converter_mes_usuario(
-                    mes_usuario
-                )
-            )
-
-            if mes_ano is None:
-
-                print(
-                    "Mês inválido."
-                )
-
-                continue
 
             valor = input(
                 "Valor planejado: "
             )
 
-            print(
+
+            resultado = (
                 cadastrar_orcamento(
                     id_categoria,
                     mes_ano,
@@ -1306,101 +1639,12 @@ def menu_orcamento():
                 )
             )
 
-
-        # ----------------------------------------------------
-        # EXECUÇÃO
-        # ----------------------------------------------------
-
-        elif escolha == "2":
-
-            mes_usuario = input(
-                "Mês (ex.: set-26): "
-            )
-
-            mes_ano = (
-                converter_mes_usuario(
-                    mes_usuario
-                )
-            )
-
-            if mes_ano is None:
-                print(
-                    "Mês inválido."
-                )
-                continue
-
-            resumo = (
-                obter_resumo_orcamento(
-                    mes_ano,
-                    ID_USUARIO_PRINCIPAL
-                )
-            )
-
             print(
-                "\n" + "=" * 45
+                f"\n{resultado}"
             )
 
-            print(
-                f"       ORÇAMENTO | "
-                f"{mes_usuario.lower()}"
-            )
 
-            print(
-                "=" * 45
-            )
-
-            if not resumo:
-
-                print(
-                    "\nNenhum orçamento definido."
-                )
-
-                continue
-
-            for item in resumo:
-
-                print(
-                    "\n" + "-" * 45
-                )
-
-                print(
-                    item[
-                        "categoria"
-                    ]
-                )
-
-                print(
-                    "\nPlanejado:  "
-                    f"{formatar_valor(item['planejado'])}"
-                )
-
-                print(
-                    "Executado:  "
-                    f"{formatar_valor(item['executado'])}"
-                )
-
-                print(
-                    "Disponível: "
-                    f"{formatar_valor(item['disponivel'])}"
-                )
-
-                print(
-                    "\nExecução:  "
-                    f"{item['percentual_execucao']:.1f}%"
-                )
-
-                print(
-                    "Ritmo mês: "
-                    f"{item['percentual_mes']:.1f}%"
-                )
-
-                print(
-                    "\nSemáforo: "
-                    f"{item['semaforo']}"
-                )
-
-
-        elif escolha == "0":
+        elif opcao == "0":
             return
 
 
