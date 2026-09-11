@@ -233,35 +233,3 @@ def calcular_executado_categoria(
         2
     )
 
-if __name__ == "__main__":
-
-    ID_USUARIO = 1
-
-    print("\n=== TESTE ORÇAMENTO ===")
-
-    print("\nSaídas diretas:")
-    print(
-        calcular_saidas_diretas(
-            1,
-            "2026-10",
-            ID_USUARIO
-        )
-    )
-
-    print("\nParcelas de cartão:")
-    print(
-        calcular_parcelas_responsabilidade(
-            1,
-            "2026-10",
-            ID_USUARIO
-        )
-    )
-
-    print("\nExecutado total:")
-    print(
-        calcular_executado_categoria(
-            1,
-            "2026-10",
-            ID_USUARIO
-        )
-    )

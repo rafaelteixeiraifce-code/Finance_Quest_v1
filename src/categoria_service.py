@@ -22,10 +22,3 @@ def obter_resumo_categorias():
     # F) Retornar a lista formatada
     return categorias_formatadas
 
-# 3. A arena de testes
-if __name__ == "__main__":
-    # Chamar a função, guardar numa variável e imprimir usando um loop para vermos a mágica!
-    resultado = obter_resumo_categorias()
-    print("--- RELATÓRIO DE CATEGORIAS ---")
-    for linha in resultado:
-        print(linha)

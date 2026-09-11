@@ -33,12 +33,3 @@ def cadastrar_conta(id_instituicao, nome, tipo, saldo_inicial):
     if id_instituicao <= 0:
         return "ID da instituição inválido."
 
-if __name__ == "__main__":
-    print(cadastrar_conta(
-        3,
-        "Conta Inter Principal",
-        "corrente",
-        1000
-    ))
-
-    print(listar_contas())

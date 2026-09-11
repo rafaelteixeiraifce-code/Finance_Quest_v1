@@ -94,5 +94,3 @@ def buscar_conta_por_nome(nome):
     return dado
 
 
-if __name__ == "__main__":
-    print(listar_contas())

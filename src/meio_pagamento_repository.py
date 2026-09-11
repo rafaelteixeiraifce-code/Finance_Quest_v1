@@ -29,8 +29,3 @@ def listar_meios_pagamento():
     # F) Retornar o resultado (return)
     return dados
 
-# 3. A arena de testes
-if __name__ == "__main__":
-    # Chamar a função listar_meios_pagamento(), guardar o retorno em uma variável e imprimir (print) para testar!
-    resultado = listar_meios_pagamento()
-    print(resultado)

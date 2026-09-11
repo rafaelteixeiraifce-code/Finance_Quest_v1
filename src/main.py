@@ -506,16 +506,10 @@ def selecionar_categoria():
 
 
 def selecionar_item(id_categoria):
+
     itens = obter_itens_por_categoria(
         id_categoria
     )
-
-    if not itens:
-        print(
-            "\nNenhum item cadastrado "
-            "para essa categoria."
-        )
-        return None
 
     print(
         "\n=== ITENS ==="
@@ -531,6 +525,23 @@ def selecionar_item(id_categoria):
             f"{indice}. {nome}"
         )
 
+
+    # ========================================================
+    # OPÇÕES EXTRAS
+    # ========================================================
+
+    opcao_geral = len(itens) + 1
+    opcao_novo = len(itens) + 2
+
+    print(
+        f"{opcao_geral}. Geral / Outro"
+    )
+
+    print(
+        f"{opcao_novo}. Cadastrar novo item"
+    )
+
+
     try:
         escolha = int(
             input(
@@ -538,24 +549,226 @@ def selecionar_item(id_categoria):
             )
         )
 
-        if not 1 <= escolha <= len(
-            itens
-        ):
-            print(
-                "Opção inválida."
-            )
-            return None
+    except ValueError:
+
+        print(
+            "Opção inválida."
+        )
+
+        return None
+
+
+    # ========================================================
+    # ITEM EXISTENTE
+    # ========================================================
+
+    if 1 <= escolha <= len(itens):
 
         return itens[
             escolha - 1
         ][0]
 
+
+    # ========================================================
+    # GERAL / OUTRO
+    # ========================================================
+
+    if escolha == opcao_geral:
+
+        nome_geral = "Geral"
+
+        # Procura se já existe.
+        for item in itens:
+
+            id_item, nome, ativo = item
+
+            if nome.lower() == (
+                nome_geral.lower()
+            ):
+                return id_item
+
+
+        # Se não existe, cria automaticamente.
+        resultado = cadastrar_item(
+            id_categoria,
+            nome_geral
+        )
+
+        print(
+            resultado
+        )
+
+        # Busca novamente para descobrir o ID.
+        itens_atualizados = (
+            obter_itens_por_categoria(
+                id_categoria
+            )
+        )
+
+        for item in itens_atualizados:
+
+            id_item, nome, ativo = item
+
+            if nome.lower() == (
+                nome_geral.lower()
+            ):
+                return id_item
+
+        return None
+
+
+    # ========================================================
+    # CADASTRAR NOVO ITEM
+    # ========================================================
+
+    if escolha == opcao_novo:
+
+        nome = input(
+            "Nome do novo item: "
+        ).strip()
+
+        if nome == "":
+
+            print(
+                "Nome inválido."
+            )
+
+            return None
+
+
+        resultado = cadastrar_item(
+            id_categoria,
+            nome
+        )
+
+        print(
+            resultado
+        )
+
+
+        # Busca novamente para recuperar o ID.
+        itens_atualizados = (
+            obter_itens_por_categoria(
+                id_categoria
+            )
+        )
+
+        for item in itens_atualizados:
+
+            id_item, nome_item, ativo = item
+
+            if nome_item.lower() == (
+                nome.lower()
+            ):
+                return id_item
+
+
+        return None
+
+
+    print(
+        "Opção inválida."
+    )
+
+    return None
+
+def selecionar_ou_cadastrar_pessoa():
+    pessoas = obter_pessoas()
+
+    pessoas_ativas = [
+        pessoa
+        for pessoa in pessoas
+        if pessoa[2] == 1
+    ]
+
+    print("\n=== PESSOAS ===")
+
+    for indice, pessoa in enumerate(
+        pessoas_ativas,
+        start=1
+    ):
+        _, nome, _ = pessoa
+
+        print(
+            f"{indice}. {nome}"
+        )
+
+    opcao_nova = (
+        len(pessoas_ativas) + 1
+    )
+
+    print(
+        f"{opcao_nova}. Adicionar nova pessoa"
+    )
+
+    try:
+        escolha = int(
+            input(
+                "Escolha a pessoa: "
+            )
+        )
+
     except ValueError:
         print(
-            "Digite uma opção numérica."
+            "Opção inválida."
         )
         return None
 
+    # Nova pessoa
+    if escolha == opcao_nova:
+
+        nome = input(
+            "Nome da nova pessoa: "
+        ).strip()
+
+        if nome == "":
+            print(
+                "Nome inválido."
+            )
+            return None
+
+        resultado = cadastrar_pessoa(
+            nome
+        )
+
+        print(
+            resultado
+        )
+
+        # Busca novamente para obter o ID.
+        pessoas = obter_pessoas()
+
+        for pessoa in pessoas:
+
+            (
+                id_pessoa,
+                nome_pessoa,
+                ativo
+            ) = pessoa
+
+            if (
+                ativo == 1
+                and nome_pessoa.lower()
+                == nome.lower()
+            ):
+                return id_pessoa
+
+        return None
+
+    # Pessoa existente
+    if not 1 <= escolha <= len(
+        pessoas_ativas
+    ):
+
+        print(
+            "Opção inválida."
+        )
+
+        return None
+
+    return pessoas_ativas[
+        escolha - 1
+    ][0]
 
 def selecionar_pessoa():
     pessoas = obter_pessoas()
@@ -719,8 +932,6 @@ def selecionar_conta():
 
 def selecionar_cartao_compra():
 
-    cartoes = obter_cartoes()
-
     print(
         "\n=== CARTÃO UTILIZADO ==="
     )
@@ -734,6 +945,8 @@ def selecionar_cartao_compra():
         "Escolha: "
     ).strip()
 
+    cartoes = obter_cartoes()
+
     instituicoes = {
         "1": "Nubank",
         "2": "Bradesco",
@@ -742,7 +955,7 @@ def selecionar_cartao_compra():
 
 
     # ========================================================
-    # CARTÕES PRÓPRIOS
+    # CARTÃO PRÓPRIO
     # ========================================================
 
     if escolha in instituicoes:
@@ -760,9 +973,9 @@ def selecionar_cartao_compra():
             if (
                 cartao[6] == 1
                 and cartao[7]
-                    == ID_USUARIO_PRINCIPAL
+                == ID_USUARIO_PRINCIPAL
                 and cartao[1].lower()
-                    == nome_instituicao.lower()
+                == nome_instituicao.lower()
             )
         ]
 
@@ -775,40 +988,13 @@ def selecionar_cartao_compra():
 
             return None
 
-        if len(encontrados) == 1:
-            return encontrados[0][0]
-
-
-        print(
-            f"\n=== CARTÕES {nome_instituicao.upper()} ==="
-        )
-
-        for indice, cartao in enumerate(
-            encontrados,
-            start=1
-        ):
-            print(
-                f"{indice}. {cartao[2]}"
-            )
-
-        try:
-            opcao = int(
-                input(
-                    "Escolha: "
-                )
-            )
-
-        except ValueError:
-            return None
-
-        if not 1 <= opcao <= len(
-            encontrados
-        ):
-            return None
-
-        return encontrados[
-            opcao - 1
-        ][0]
+        return {
+            "tipo": "proprio",
+            "id_cartao":
+                encontrados[0][0],
+            "id_pagador":
+                ID_USUARIO_PRINCIPAL
+        }
 
 
     # ========================================================
@@ -821,68 +1007,18 @@ def selecionar_cartao_compra():
             "\nDe quem é o cartão?"
         )
 
-        id_pessoa = selecionar_pessoa()
+        id_pessoa = (
+            selecionar_ou_cadastrar_pessoa()
+        )
 
         if id_pessoa is None:
             return None
 
-        encontrados = [
-            cartao
-            for cartao in cartoes
-
-            if (
-                cartao[6] == 1
-                and cartao[7] == id_pessoa
-            )
-        ]
-
-        if not encontrados:
-
-            print(
-                "\nNenhum cartão cadastrado "
-                "para essa pessoa."
-            )
-
-            print(
-                "Cadastre em "
-                "Configurações > Cartões."
-            )
-
-            return None
-
-        print(
-            "\n=== CARTÕES DISPONÍVEIS ==="
-        )
-
-        for indice, cartao in enumerate(
-            encontrados,
-            start=1
-        ):
-
-            print(
-                f"{indice}. "
-                f"{cartao[2]} | "
-                f"{cartao[1]}"
-            )
-
-        try:
-            opcao = int(
-                input(
-                    "Escolha: "
-                )
-            )
-
-        except ValueError:
-            return None
-
-        if not 1 <= opcao <= len(
-            encontrados
-        ):
-            return None
-
-        return encontrados[
-            opcao - 1
-        ][0]
+        return {
+            "tipo": "terceiro",
+            "id_cartao": None,
+            "id_pagador": id_pessoa
+        }
 
 
     print(
@@ -998,6 +1134,185 @@ def selecionar_meio_pagamento_cartao():
 # ============================================================
 
 def fluxo_registrar_movimentacao():
+
+    print(
+        "\n" + "=" * 45
+    )
+
+    print(
+        "         REGISTRAR MOVIMENTAÇÃO"
+    )
+
+    print(
+        "=" * 45
+    )
+
+    print(
+        "\n1. Entrada"
+    )
+
+    print(
+        "2. Saída"
+    )
+
+    tipo_escolha = input(
+        "\nEscolha [1/2]: "
+    ).strip()
+
+
+    # ========================================================
+    # ENTRADA
+    # ========================================================
+
+    if tipo_escolha == "1":
+
+        print(
+            "\n=== ENTRADA ==="
+        )
+
+        print(
+            "1. Salário"
+        )
+
+        print(
+            "2. Gratificação"
+        )
+
+        print(
+            "3. Reembolso"
+        )
+
+        print(
+            "4. Outra entrada"
+        )
+
+        escolha = input(
+            "\nTipo de entrada: "
+        ).strip()
+
+        tipos = {
+            "1": "Salário",
+            "2": "Gratificação",
+            "3": "Reembolso"
+        }
+
+        if escolha in tipos:
+
+            descricao = tipos[
+                escolha
+            ]
+
+        elif escolha == "4":
+
+            descricao = input(
+                "Descrição: "
+            )
+
+        else:
+
+            print(
+                "Opção inválida."
+            )
+
+            return
+
+
+        data = input(
+            "Data (AAAA-MM-DD): "
+        )
+
+        valor = input(
+            "Valor: "
+        )
+
+
+        resultado = registrar_movimentacao(
+            tipo="entrada",
+            data=data,
+            descricao=descricao,
+            valor=valor
+        )
+
+
+        print(
+            f"\n{resultado}"
+        )
+
+        return
+
+
+    # ========================================================
+    # SAÍDA
+    # ========================================================
+
+    if tipo_escolha == "2":
+
+        print(
+            "\n=== SAÍDA ==="
+        )
+
+        data = input(
+            "Data (AAAA-MM-DD): "
+        )
+
+        valor = input(
+            "Valor: "
+        )
+
+
+        id_categoria = (
+            selecionar_categoria()
+        )
+
+        if id_categoria is None:
+            return
+
+
+        id_item = selecionar_item(
+            id_categoria
+        )
+
+        if id_item is None:
+            return
+
+
+        observacao = input(
+            "Observação (opcional): "
+        )
+
+
+        id_meio_pagamento = (
+            selecionar_meio_pagamento()
+        )
+
+        if id_meio_pagamento is None:
+            return
+
+
+        resultado = registrar_movimentacao(
+            tipo="saida",
+            data=data,
+            descricao=observacao,
+            valor=valor,
+            id_categoria=id_categoria,
+            id_item=id_item,
+            id_meio_pagamento=
+                id_meio_pagamento
+        )
+
+
+        print(
+            f"\n{resultado}"
+        )
+
+        return
+
+
+    print(
+        "\nOpção inválida."
+    )
+
+def fluxo_registrar_compra():
 
     print(
         "\n" + "=" * 45
@@ -1132,20 +1447,6 @@ def fluxo_registrar_movimentacao():
             selecionar_meio_pagamento()
         )
 
-        resultado = registrar_movimentacao(
-            tipo="saida",
-            data=data,
-            descricao=observacao,
-            valor=valor,
-            id_categoria=id_categoria,
-            id_item=id_item,
-            id_meio_pagamento=id_meio_pagamento
-        )
-
-        print(
-            f"\n{resultado}"
-        )
-
         return
 
 
@@ -1159,12 +1460,63 @@ def fluxo_registrar_movimentacao():
 # ============================================================
 
 def montar_responsabilidades(
-    valor_total
+    valor_total,
+    tipo_cartao="proprio"
 ):
 
     print(
         "\n=== RESPONSABILIDADE ==="
     )
+
+
+    # ========================================================
+    # CARTÃO DE OUTRA PESSOA
+    # ========================================================
+
+    if tipo_cartao == "terceiro":
+
+        print(
+            "1. Minha [padrão]"
+        )
+
+        print(
+            "2. Compartilhada"
+        )
+
+        escolha = input(
+            "Escolha [Enter = 1]: "
+        ).strip()
+
+        if escolha == "":
+            escolha = "1"
+
+        if escolha == "1":
+
+            return [
+                (
+                    ID_USUARIO_PRINCIPAL,
+                    valor_total
+                )
+            ]
+
+        if escolha == "2":
+
+            return (
+                montar_rateio_compartilhado(
+                    valor_total
+                )
+            )
+
+        print(
+            "Opção inválida."
+        )
+
+        return None
+
+
+    # ========================================================
+    # CARTÃO PRÓPRIO
+    # ========================================================
 
     print(
         "1. Minha [padrão]"
@@ -1186,10 +1538,7 @@ def montar_responsabilidades(
         escolha = "1"
 
 
-    # ========================================================
-    # MINHA
-    # ========================================================
-
+    # Minha
     if escolha == "1":
 
         return [
@@ -1200,14 +1549,11 @@ def montar_responsabilidades(
         ]
 
 
-    # ========================================================
-    # OUTRA PESSOA
-    # ========================================================
-
+    # Outra pessoa
     if escolha == "2":
 
         id_pessoa = (
-            selecionar_pessoa()
+            selecionar_ou_cadastrar_pessoa()
         )
 
         if id_pessoa is None:
@@ -1221,76 +1567,121 @@ def montar_responsabilidades(
         ]
 
 
-    # ========================================================
-    # COMPARTILHADA
-    # ========================================================
-
+    # Compartilhada
     if escolha == "3":
 
+        return (
+            montar_rateio_compartilhado(
+                valor_total
+            )
+        )
+
+
+    print(
+        "Opção inválida."
+    )
+
+    return None
+
+def montar_rateio_compartilhado(
+    valor_total
+):
+
+    try:
+        quantidade = int(
+            input(
+                "Quantidade de participantes: "
+            )
+        )
+
+    except ValueError:
+
+        print(
+            "Quantidade inválida."
+        )
+
+        return None
+
+    if quantidade <= 0:
+        return None
+
+    cotas = []
+    pessoas_usadas = set()
+
+    for numero in range(
+        1,
+        quantidade + 1
+    ):
+
+        print(
+            f"\nParticipante {numero}"
+        )
+
+        id_pessoa = (
+            selecionar_ou_cadastrar_pessoa()
+        )
+
+        if id_pessoa is None:
+            return None
+
+        if id_pessoa in pessoas_usadas:
+
+            print(
+                "Pessoa repetida."
+            )
+
+            return None
+
+        pessoas_usadas.add(
+            id_pessoa
+        )
+
         try:
-            quantidade = int(
+            valor_cota = float(
                 input(
-                    "Quantidade de participantes: "
+                    "Valor da responsabilidade: "
                 )
             )
 
         except ValueError:
-            return None
-
-        if quantidade <= 0:
-            return None
-
-        cotas = []
-        pessoas_usadas = set()
-
-        for numero in range(
-            1,
-            quantidade + 1
-        ):
 
             print(
-                f"\nParticipante {numero}"
+                "Valor inválido."
             )
 
-            id_pessoa = (
-                selecionar_pessoa()
+            return None
+
+        cotas.append(
+            (
+                id_pessoa,
+                valor_cota
             )
-
-            if id_pessoa is None:
-                return None
-
-            if id_pessoa in pessoas_usadas:
-                print(
-                    "Pessoa repetida."
-                )
-                return None
-
-            pessoas_usadas.add(
-                id_pessoa
-            )
-
-            try:
-                valor_cota = float(
-                    input(
-                        "Valor da responsabilidade: "
-                    )
-                )
-
-            except ValueError:
-                return None
-
-            cotas.append(
-                (
-                    id_pessoa,
-                    valor_cota
-                )
-            )
-
-        return cotas
+        )
 
 
-    return None
+    # Confere a soma
+    total_cotas = round(
+        sum(
+            valor
+            for _, valor in cotas
+        ),
+        2
+    )
 
+    if total_cotas != round(
+        valor_total,
+        2
+    ):
+
+        print(
+            "\nA soma das responsabilidades "
+            "precisa ser igual ao valor "
+            "total da compra."
+        )
+
+        return None
+
+    return cotas
 
 def fluxo_registrar_compra():
 
@@ -1306,9 +1697,49 @@ def fluxo_registrar_compra():
         "=" * 45
     )
 
+
+    # ========================================================
+    # 1. CARTÃO
+    # ========================================================
+
+    contexto_cartao = (
+        selecionar_cartao_compra()
+    )
+
+    if contexto_cartao is None:
+        return
+
+    id_cartao = (
+        contexto_cartao[
+            "id_cartao"
+        ]
+    )
+
+    id_pagador = (
+        contexto_cartao[
+            "id_pagador"
+        ]
+    )
+
+    tipo_cartao = (
+        contexto_cartao[
+            "tipo"
+        ]
+    )
+
+
+    # ========================================================
+    # 2. DATA
+    # ========================================================
+
     data = input(
         "Data (AAAA-MM-DD): "
     )
+
+
+    # ========================================================
+    # 3. VALOR
+    # ========================================================
 
     valor_texto = input(
         "Valor total: "
@@ -1328,6 +1759,10 @@ def fluxo_registrar_compra():
         return
 
 
+    # ========================================================
+    # 4. CATEGORIA
+    # ========================================================
+
     id_categoria = (
         selecionar_categoria()
     )
@@ -1335,6 +1770,10 @@ def fluxo_registrar_compra():
     if id_categoria is None:
         return
 
+
+    # ========================================================
+    # 5. ITEM
+    # ========================================================
 
     id_item = selecionar_item(
         id_categoria
@@ -1344,18 +1783,18 @@ def fluxo_registrar_compra():
         return
 
 
+    # ========================================================
+    # 6. OBSERVAÇÃO
+    # ========================================================
+
     observacao = input(
         "Observação (opcional): "
     )
 
 
-    id_cartao = (
-        selecionar_cartao_compra()
-    )
-
-    if id_cartao is None:
-        return
-
+    # ========================================================
+    # 7. PARCELAS
+    # ========================================================
 
     quantidade_parcelas = input(
         "Quantidade de parcelas [1]: "
@@ -1365,9 +1804,14 @@ def fluxo_registrar_compra():
         quantidade_parcelas = "1"
 
 
+    # ========================================================
+    # 8. RESPONSABILIDADE
+    # ========================================================
+
     responsabilidades = (
         montar_responsabilidades(
-            valor_total
+            valor_total,
+            tipo_cartao
         )
     )
 
@@ -1380,6 +1824,10 @@ def fluxo_registrar_compra():
         return
 
 
+    # ========================================================
+    # 9. CADASTRAR
+    # ========================================================
+
     resultado = cadastrar_compra(
         data=data,
         observacao=observacao,
@@ -1387,6 +1835,7 @@ def fluxo_registrar_compra():
         id_categoria=id_categoria,
         id_item=id_item,
         id_cartao=id_cartao,
+        id_pessoa_pagador=id_pagador,
         quantidade_parcelas=
             quantidade_parcelas,
         responsabilidades=
@@ -1396,7 +1845,6 @@ def fluxo_registrar_compra():
     print(
         f"\n{resultado}"
     )
-
 
 # ============================================================
 # ORÇAMENTO
@@ -1693,12 +2141,21 @@ def menu_cartoes():
 
         if escolha == "1":
 
-            id_cartao = (
-                selecionar_cartao_compra()
-            )
+            contexto_cartao = selecionar_cartao_compra()
 
-            if id_cartao is None:
+            if contexto_cartao is None:
                 continue
+
+            # Resumo só faz sentido para cartão
+            # efetivamente cadastrado no sistema.
+            if contexto_cartao["id_cartao"] is None:
+                print(
+                    "\nCartão de terceiro sem cadastro "
+                    "não possui resumo de fatura."
+                )
+                continue
+
+            id_cartao = contexto_cartao["id_cartao"]
 
             mes_usuario = input(
                 "Mês da fatura "
@@ -1779,17 +2236,26 @@ def menu_cartoes():
 
             cartoes = obter_cartoes()
 
+            if not cartoes:
+                print(
+                    "\nNenhum cartão cadastrado."
+                )
+                continue
+
+            print(
+                "\n=== CARTÕES CADASTRADOS ==="
+            )
+
             for cartao in cartoes:
 
-                (
-                    _,
-                    instituicao,
-                    nome,
-                    limite,
-                    fechamento,
-                    vencimento,
-                    ativo
-                ) = cartao
+                id_cartao = cartao[0]
+                instituicao = cartao[1]
+                nome = cartao[2]
+                limite_total = cartao[3]
+                dia_fechamento = cartao[4]
+                dia_vencimento = cartao[5]
+                ativo = cartao[6]
+                nome_titular = cartao[8]
 
                 status = (
                     "Ativo"
@@ -1798,39 +2264,38 @@ def menu_cartoes():
                 )
 
                 print(
-                    "\n" + "-" * 40
+                    "\n" + "-" * 45
                 )
 
                 print(
+                    f"{id_cartao}. "
                     f"{nome} | {instituicao}"
                 )
 
                 print(
+                    f"Titular: {nome_titular}"
+                )
+
+                print(
                     f"Limite: "
-                    f"{formatar_valor(limite)}"
+                    f"{formatar_valor(limite_total)}"
                 )
 
                 print(
-                    f"Fecha dia {fechamento}"
-                )
-
-                print(
-                    f"Vence dia {vencimento}"
+                    f"Fecha dia {dia_fechamento} "
+                    f"| Vence dia {dia_vencimento}"
                 )
 
                 print(
                     f"Status: {status}"
                 )
 
-
         elif escolha == "0":
-            return
+                    return
 
 
         else:
-            print(
-                "Opção inválida."
-            )
+            print("Opção inválida.")
 
 
 # ============================================================

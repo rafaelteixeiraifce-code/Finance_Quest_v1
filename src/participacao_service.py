@@ -167,16 +167,3 @@ def calcular_acerto_liquido():
         pares_processados.add(par)
 
     return resultado
-
-
-if __name__ == "__main__":
-
-    print("ACERTO LÍQUIDO:")
-
-    for acerto in calcular_acerto_liquido():
-
-        print(
-            f"{acerto['devedor']} deve "
-            f"R$ {acerto['valor']:.2f} para "
-            f"{acerto['credor']}"
-        )

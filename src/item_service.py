@@ -81,7 +81,3 @@ def inativar_item(id_item):
     return "Item desativado com sucesso."
 
 
-if __name__ == "__main__":
-    print(
-        obter_itens()
-    )

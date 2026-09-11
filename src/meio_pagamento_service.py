@@ -22,10 +22,4 @@ def obter_resumo_meios_pagamento():
     # F) Retornar a lista formatada
     return meios_pagamento_formatados
 
-# 3. A arena de testes
-if __name__ == "__main__":
-    # Chamar a função, guardar numa variável e imprimir usando um loop para vermos a mágica!
-    resultado = obter_resumo_meios_pagamento()
-    print("--- RELATÓRIO DE MEIOS DE PAGAMENTO ---")
-    for linha in resultado:
-        print(linha)
+

@@ -34,7 +34,3 @@ def inativar_pessoa(id_pessoa):
         return "Pessoa não encontrada."
 
     return "Pessoa desativada com sucesso."
-
-
-if __name__ == "__main__":
-    print(obter_pessoas())

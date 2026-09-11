@@ -56,10 +56,7 @@ def calcular_primeiro_vencimento(
     ano = data_compra.year
     mes = data_compra.month
 
-    if (
-        data_compra.day
-        > dia_fechamento
-    ):
+    if data_compra.day > dia_fechamento:
         mes += 1
 
         if mes > 12:
@@ -90,6 +87,7 @@ def cadastrar_compra(
     id_categoria,
     id_item,
     id_cartao,
+    id_pessoa_pagador,
     quantidade_parcelas,
     responsabilidades=None
 ):
@@ -112,23 +110,25 @@ def cadastrar_compra(
             id_item
         )
 
-        id_cartao = int(
-            id_cartao
+        id_pessoa_pagador = int(
+            id_pessoa_pagador
         )
 
         quantidade_parcelas = int(
             quantidade_parcelas
         )
 
+        if id_cartao is not None:
+            id_cartao = int(
+                id_cartao
+            )
+
     except (ValueError, TypeError):
-        return (
-            "Existem valores inválidos."
-        )
+        return "Existem valores inválidos."
 
     if valor_total <= 0:
         return (
-            "O valor precisa ser "
-            "maior que zero."
+            "O valor precisa ser maior que zero."
         )
 
     if quantidade_parcelas <= 0:
@@ -144,55 +144,60 @@ def cadastrar_compra(
 
     except ValueError:
         return (
-            "Data inválida. "
-            "Use AAAA-MM-DD."
+            "Data inválida. Use AAAA-MM-DD."
         )
 
 
     # ========================================================
-    # CARTÃO
+    # CARTÃO PRÓPRIO
     # ========================================================
 
-    cartao = buscar_cartao_por_id(
-        id_cartao
-    )
+    if id_cartao is not None:
 
-    if cartao is None:
-        return (
-            "Cartão não encontrado."
+        cartao = buscar_cartao_por_id(
+            id_cartao
         )
 
-    (
-        id_cartao,
-        nome_cartao,
-        limite_total,
-        dia_fechamento,
-        dia_vencimento,
-        ativo,
-        id_pessoa_pagador
-    ) = cartao
+        if cartao is None:
+            return "Cartão não encontrado."
 
-    if ativo != 1:
-        return (
-            "O cartão escolhido está inativo."
-        )
+        (
+            id_cartao,
+            nome_cartao,
+            limite_total,
+            dia_fechamento,
+            dia_vencimento,
+            ativo,
+            _
+        ) = cartao
 
-    if id_pessoa_pagador is None:
-        id_pessoa_pagador = (
-            ID_USUARIO_PRINCIPAL
-        )
+        if ativo != 1:
+            return (
+                "O cartão escolhido está inativo."
+            )
 
 
     # ========================================================
-    # FORMA DE PAGAMENTO AUTOMÁTICA
+    # CARTÃO DE TERCEIRO
+    # ========================================================
+
+    else:
+
+        # Simplificação do MVP.
+        # Posteriormente poderemos cadastrar
+        # fechamento/vencimento por cartão de terceiro.
+        dia_fechamento = 5
+        dia_vencimento = 10
+
+
+    # ========================================================
+    # MEIO DE PAGAMENTO
     # ========================================================
 
     if quantidade_parcelas == 1:
-        # Crédito à vista
         id_meio_pagamento = 4
 
     else:
-        # Crédito parcelado
         id_meio_pagamento = 5
 
 
@@ -243,9 +248,7 @@ def cadastrar_compra(
 
         if numero < quantidade_parcelas:
 
-            valor_parcela = (
-                valor_base
-            )
+            valor_parcela = valor_base
 
         else:
 
@@ -254,8 +257,7 @@ def cadastrar_compra(
                 - (
                     valor_base
                     * (
-                        quantidade_parcelas
-                        - 1
+                        quantidade_parcelas - 1
                     )
                 ),
                 2
