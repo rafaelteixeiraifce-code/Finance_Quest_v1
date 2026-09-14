@@ -1,8 +1,19 @@
 import sqlite3
+from pathlib import Path
 
-from database import CAMINHO_BANCO
 
-print(f"Banco DEV será criado em: {CAMINHO_BANCO}")
+PASTA_PROJETO = (
+    Path(__file__)
+    .resolve()
+    .parent
+    .parent
+    .parent
+)
+
+CAMINHO_BANCO = (
+    PASTA_PROJETO
+    / "finance_quest_dev.db"
+)
 
 conexao = sqlite3.connect(CAMINHO_BANCO)
 cursor = conexao.cursor()
