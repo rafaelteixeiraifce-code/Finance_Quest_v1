@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+
+<html lang = "pt-BR">
+    <head>
+        <meta charset = "UTF-8"/>
+        <meta 
+            name = "viewport" 
+            content = "width=device-width, initial-scale=1.0" 
+        />
+
+        <title>Finance Quest</title>
+
+        <link rel = "stylesheet" href = "style.css" />
+
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
+
+    </head>
+
+    <body>
+        <header>
+            <h1>Finance Quest</h1>
+            <p>Seu dinheiro. Sua jornada.</p>
+        </header>
+
+    <main>
+        <h2>Novo lançamento</h2>
+
+        <form>
+            <label for="tipo">Tipo</label>
+            <select id="tipo" name="tipo">
+                <option value="saida">Saída</option>
+                <option value="entrada">Entrada</option>
+            </select>
+
+            <label for="valor">Valor</label>
+            <input
+                type="number"
+                id="valor"
+                name="valor"
+            />
+
+            <label for="data">Data</label>
+            <input
+                type="date"
+                id="data"
+                name="data"
+                placeholder="dd/mm/aaaa"
+            />
+
+            <label for="categoria">Categoria</label>
+            <select id="categoria" name="categoria">
+                <option value="">Selecione...</option>
+                <option value="supermercado">Supermercado</option>
+                <option value="moradia">Moradia</option>
+                <option value="transporte">Transporte</option>
+                <option value="lazer">Lazer</option>
+                <option value="compras">Compras</option>
+                <option value="contas">Contas</option>
+                <option value="metas/reservas">Metas/Reservas</option>
+                <option value="olivia">Olívia</option>
+                <option value="mae">Mãe</option>
+                <option value="outros">Outros</option>
+            </select>
+
+            <label for="item">Item</label>
+            <select id="item" name="item">
+                <option value="">Selecione...</option>
+                <option value="supermercado">Supermercado</option>
+                <option value="restaurante">Restaurante</option>
+                <option value="passeios">Passeios</option>
+                <option value="compras">Compras</option>
+                <option value="delivery">Delivery</option>
+                <option value="vivo">Vivo</option>
+                <option value="google one" >Google One</option>
+                <option value="greenlife">Greenlife</option>
+                <option value="ajuda p mae">Ajuda p/ Mãe</option>
+                <option value="iptu">IPTU</option>
+                <option value="energia">Energia</option>
+                <option value="unimed olivia">Unimed Olívia</option>
+                <option value="itapipoca">Itapipoca</option>
+                <option value="psi mae">Psi Mãe</option>
+                <option value="kwid ipva ou revisao">Kwid IPVA ou Revisão</option>
+                <option value="kwid parcela e seguro">Kwid parcela e seguro</option>
+                <option value="kwid gasolina">Kwid Gasolina</option>
+                <option value="barbearia">Barbearia</option>
+                <option value="spotify">Spotify</option>
+                <option value="exame">Exame</option>
+                <option value="roupas">Roupas</option>
+                <option value="amazon">Amazon</option>
+                <option value="remedios e vitaminas">Remédios e Vitaminas</option>
+                <option value="uber">Uber</option>
+                <option value="presente">Presente</option>
+                <option value="cartao">Cartão</option>
+                <option value="condominio">Condomínio</option>
+            </select>
+
+            <label for="pagamento">Meio de Pagamento</label>
+            <select id="pagamento" name="pagamento">
+                <option value="">Selecione...</option>
+                <option value="pix">Pix</option>
+                <option value="cartao de credito">Cartão de Crédito</option>
+                <option value="cartao de debito">Cartão de Débito</option>
+                <option value="transferencia">Transferência</option>
+            </select>
+
+            <label for="observacao">Observação</label>
+            <input
+                type="text"
+                id="observacao"
+                name="observacao"
+                placeholder="Opcional"
+            />
+            
+            <button type="submit">
+                Salvar lançamento
+            </button>
+        </form>
+    </main>
+    </body>
+</html>

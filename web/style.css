@@ -1,0 +1,38 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #eeeeee;
+    font-family: "Pixelify Sans", sans-serif;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+
+}
+
+main {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+h1 {
+    font-size: 30px;
+    font-weight: bold;
+}
+
+label {
+    display: block;
+    margin-top:12px;
+}
+
+input,
+select,
+button {
+    width: 100%;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 16px;
+    margin-top:10px;
+}

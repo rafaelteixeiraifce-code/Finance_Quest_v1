@@ -1,14 +1,6 @@
+import json
 import sqlite3
 from pathlib import Path
-
-
-# ============================================================
-# CONFIGURAÇÃO DO AMBIENTE
-# ============================================================
-
-# True  = banco de desenvolvimento/testes
-# False = banco de uso real
-MODO_DEV = True
 
 
 # ============================================================
@@ -22,10 +14,72 @@ PASTA_PROJETO = (
     .parent
 )
 
-if MODO_DEV:
-    NOME_BANCO = "finance_quest_dev.db"
+CAMINHO_CONFIG = (
+    PASTA_PROJETO
+    / "finance_quest_config.json"
+)
+
+
+# ============================================================
+# AMBIENTE
+# ============================================================
+
+def obter_ambiente():
+
+    # Segurança:
+    # se não houver configuração local,
+    # o Finance Quest sempre inicia em DEV.
+    if not CAMINHO_CONFIG.exists():
+        return "dev"
+
+    try:
+
+        with open(
+            CAMINHO_CONFIG,
+            "r",
+            encoding="utf-8"
+        ) as arquivo:
+
+            configuracao = json.load(
+                arquivo
+            )
+
+        ambiente = configuracao.get(
+            "ambiente",
+            "dev"
+        )
+
+        if ambiente not in (
+            "dev",
+            "real"
+        ):
+            return "dev"
+
+        return ambiente
+
+    except Exception:
+        return "dev"
+
+
+AMBIENTE = obter_ambiente()
+
+
+# ============================================================
+# BANCO
+# ============================================================
+
+if AMBIENTE == "real":
+
+    NOME_BANCO = (
+        "finance_quest.db"
+    )
+
 else:
-    NOME_BANCO = "finance_quest.db"
+
+    NOME_BANCO = (
+        "finance_quest_dev.db"
+    )
+
 
 CAMINHO_BANCO = (
     PASTA_PROJETO
@@ -67,14 +121,9 @@ def conectar_base():
 
 if __name__ == "__main__":
 
-    ambiente = (
-        "DESENVOLVIMENTO"
-        if MODO_DEV
-        else "USO REAL"
-    )
-
     print(
-        f"Ambiente: {ambiente}"
+        f"Ambiente: "
+        f"{AMBIENTE.upper()}"
     )
 
     print(
@@ -82,6 +131,7 @@ if __name__ == "__main__":
     )
 
     conexao = conectar_base()
+
     conexao.close()
 
     print(

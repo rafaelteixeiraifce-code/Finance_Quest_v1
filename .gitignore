@@ -12,3 +12,6 @@ __pycache__/
 # Python
 __pycache__/
 *.pyc
+
+# Configuração local do Finance Quest
+finance_quest_config.json
